@@ -62,7 +62,6 @@ struct TileComponent {
     y: usize,
 }
 
-// Add a marker component so grid line entities can be cleaned up when regenerating the puzzle.
 #[derive(Component)]
 struct GridLine;
 
@@ -459,7 +458,6 @@ fn new_puzzle(
     _event: On<MakeNewPuzzleRequest>,
     mut commands: Commands,
     tiles: Query<(Entity, &TileComponent)>,
-    // Also take a query for existing grid lines so they can be removed when making a new puzzle.
     grid_lines: Query<Entity, With<GridLine>>,
     asset_server: Res<AssetServer>
 ) {
@@ -480,29 +478,28 @@ fn new_puzzle(
     // UI
     let tile_size = Vec2::new(grid.tile_size(), grid.tile_size());
 
-    // Spawn white grid lines (vertical and horizontal). Lines use Anchor::TOP_LEFT and a small thickness.
-    let thickness = 2.0;
+    // Lines
+    let thickness = 1.0;
     let grid_pixel_w = grid.width() as f32 * tile_size.x;
     let grid_pixel_h = grid.height() as f32 * tile_size.y;
     let start = Vec2::new(grid.start_x(), grid.start_y());
 
-    // Vertical lines (0..=width)
+    // Vertical lines
     for i in 0..=grid.width() {
         let x = start.x + i as f32 * tile_size.x;
         commands.spawn((
             GridLine,
             Anchor::TOP_LEFT,
             Sprite {
-                color: Color::WHITE,
+                color: Color::linear_rgb(0.75, 0.75, 0.75),
                 custom_size: Some(Vec2::new(thickness, grid_pixel_h)),
                 ..default()
             },
-            // center the thickness on the grid line by offsetting x by half thickness
-            Transform::from_translation(Vec3::new(x - thickness / 2.0, start.y, 1.0)),
+            Transform::from_translation(Vec3::new(x - thickness / 2.0, start.y, -1.0)),
         ));
     }
 
-    // Horizontal lines (0..=height)
+    // Horizontal lines
     for j in 0..=grid.height() {
         let y = start.y - j as f32 * tile_size.y;
         commands.spawn((
@@ -513,8 +510,7 @@ fn new_puzzle(
                 custom_size: Some(Vec2::new(grid_pixel_w, thickness)),
                 ..default()
             },
-            // center the thickness on the grid line by offsetting y by half thickness
-            Transform::from_translation(Vec3::new(start.x, y - thickness / 2.0, 1.0)),
+            Transform::from_translation(Vec3::new(start.x, y - thickness / 2.0, -1.0)),
         ));
     }
 
@@ -545,17 +541,57 @@ fn new_puzzle(
 }
 
 fn generate_puzzle() -> Grid {
-    let mut tiles = vec![
-        Some(Tile::Cable {entry: Side::Right, exit: Side::Bottom}),
-        Some(Tile::Battery {plus_side: Side::Left, minus_side: Side::Right}),
-        Some(Tile::N),
-        Some(Tile::Cable {entry: Side::Top, exit: Side::Right}),
-        Some(Tile::Lamp {entry: Side::Left, exit: Side::Bottom}),
-        Some(Tile::P),
-        None,
-        Some(Tile::Cable {entry: Side::Top, exit: Side::Right}),
-        Some(Tile::Cable {entry: Side::Left, exit: Side::Top})
+    let possible_tiles = [
+        vec![
+            Some(Tile::Cable {entry: Side::Right, exit: Side::Bottom}),
+            Some(Tile::Battery {plus_side: Side::Left, minus_side: Side::Right}),
+            Some(Tile::N),
+            Some(Tile::Cable {entry: Side::Top, exit: Side::Right}),
+            Some(Tile::Lamp {entry: Side::Left, exit: Side::Bottom}),
+            Some(Tile::P),
+            None,
+            Some(Tile::Cable {entry: Side::Top, exit: Side::Right}),
+            Some(Tile::Cable {entry: Side::Left, exit: Side::Top})
+        ],
+
+        vec![
+            Some(Tile::N),
+            Some(Tile::P),
+            None,
+            Some(Tile::Cable {entry: Side::Top, exit: Side::Bottom}),
+            Some(Tile::Battery {plus_side: Side::Top, minus_side: Side::Right}),
+            Some(Tile::Lamp { entry: Side::Bottom, exit: Side::Left}),
+            Some(Tile::Cable {entry: Side::Top, exit: Side::Right}),
+            Some(Tile::Cable {entry: Side::Left, exit: Side::Right}),
+            Some(Tile::Cable {entry: Side::Left, exit: Side::Top})
+        ],
+
+        vec![
+            Some(Tile::N),
+            Some(Tile::P),
+            None,
+            Some(Tile::Cable {entry: Side::Top, exit: Side::Bottom}),
+            Some(Tile::Cable {entry: Side::Bottom, exit: Side::Right}),
+            Some(Tile::Cable {entry: Side::Left, exit: Side::Top}),
+            Some(Tile::Cable {entry: Side::Bottom, exit: Side::Left}),
+            Some(Tile::Lamp {entry: Side::Right, exit: Side::Left}),
+            Some(Tile::Battery {plus_side: Side::Bottom, minus_side: Side::Right}),
+        ],
+
+        vec![
+            None,
+            Some(Tile::N),
+            Some(Tile::P),
+            Some(Tile::Battery {plus_side: Side::Left, minus_side: Side::Top}),
+            Some(Tile::Cable {entry: Side::Right, exit: Side::Left}),
+            Some(Tile::Lamp {entry: Side::Right, exit: Side::Top}),
+            Some(Tile::Cable {entry: Side::Bottom, exit: Side::Right}),
+            Some(Tile::Cable {entry: Side::Left, exit: Side::Top}),
+            Some(Tile::Cable {entry: Side::Bottom, exit: Side::Right}),
+        ]
     ];
+
+    let mut tiles = possible_tiles[rand::random_range(..possible_tiles.len())].clone();
     tiles.shuffle(&mut rng());
     let grid = grid::Grid::from_vec(tiles, 3);
 
@@ -649,7 +685,7 @@ fn tile_drag_system(
                 }
             ));
         } else {
-            sprite_pos.translation = current.start_pos;
+            sprite_pos.translation = current.start_pos.truncate().extend(0.0);
 
             // Audio
             commands.spawn((
@@ -672,12 +708,13 @@ fn tile_drag_system(
 
         sprite_pos.translation.x = state.cursor_world_pos.x + current.offset_from_cursor.x;
         sprite_pos.translation.y = state.cursor_world_pos.y + current.offset_from_cursor.y;
+        sprite_pos.translation.z = 10.0;
     }
 
     // Start drag
     if mouse_button_input.just_pressed(MouseButton::Left) {
         for (entity, _, sprite) in tiles.iter_mut() {
-            let sprite_pos = transforms.get_mut(entity).unwrap().translation;
+            let sprite_pos = transforms.get_mut(entity).unwrap().translation.truncate().extend(10.0);
             let cursor_pos = state.cursor_world_pos;
 
             let sprite_size = sprite.custom_size.unwrap();
