@@ -24,8 +24,7 @@ fn main() {
             resizable: false,
             ..default()
         }),
-        ..default()
-    };
+        ..default()};
 
     // let grid = grid::grid![
     //     [Some(Tile::Cable {entry: Side::Right, exit: Side::Bottom}), Some(Tile::Battery {plus_side: Side::Left, minus_side: Side::Right}), Some(Tile::N)]
@@ -278,7 +277,10 @@ impl Grid {
                     stack.push((x + exit.x_offset(), y + exit.y_offset(), x, y, *tile, found_lamp));
                 }
 
-                Tile::Battery { .. } => {
+                Tile::Battery { plus_side: _, minus_side } => {
+                    if (x + minus_side.x_offset(), y + minus_side.y_offset()) != (prev_x, prev_y) {
+                        continue;
+                    }
                     if found_lamp {
                         return true;
                     }
@@ -288,7 +290,12 @@ impl Grid {
                     for side in [Side::Left, Side::Right, Side::Top, Side::Bottom] {
                         let nx = x + side.x_offset();
                         let ny = y + side.y_offset();
-                        stack.push((nx, ny, x, y, *tile, found_lamp));
+
+                        if nx < 0 || ny < 0 { continue; }
+
+                        if let Some(Some(Tile::N)) = self.get(nx as usize, ny as usize) {
+                            stack.push((nx, ny, x, y, *tile, found_lamp));
+                        }
                     }
                 }
 
@@ -658,14 +665,6 @@ fn tile_drag_system(
             // Solved?
             let is_solved = grid.is_solved();
 
-            if is_solved {
-                // Audio
-                commands.spawn((
-                    AudioPlayer::new(sounds.lamp_turns_on.clone()),
-                    PlaybackSettings::DESPAWN
-                ));
-            }
-
             for (_, tile, mut sprite) in tiles.iter_mut() {
                                 if let Some(lamp @ Tile::Lamp { .. }) = grid.get(tile.x, tile.y).unwrap() {
                     sprite.image = asset_server.load(match is_solved {
@@ -673,6 +672,14 @@ fn tile_drag_system(
                         false => get_path_to_start_sprite_for_tile(lamp)
                     });
                 }
+            }
+
+            if is_solved {
+                // Audio
+                commands.spawn((
+                    AudioPlayer::new(sounds.lamp_turns_on.clone()),
+                    PlaybackSettings::DESPAWN
+                ));
             }
 
             // Audio
