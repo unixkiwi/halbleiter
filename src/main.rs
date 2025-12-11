@@ -1,13 +1,13 @@
-use std::cmp::min;
-use std::collections::HashSet;
 use bevy::audio::Volume;
-use bevy::math::ops::{round};
+use bevy::math::ops::round;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy::window::WindowResolution;
 use grid::grid;
 use rand::prelude::SliceRandom;
 use rand::rng;
+use std::cmp::min;
+use std::collections::HashSet;
 
 const WIN_TITLE: &str = "Halbleiter";
 
@@ -24,7 +24,8 @@ fn main() {
             resizable: false,
             ..default()
         }),
-        ..default()};
+        ..default()
+    };
 
     // let grid = grid::grid![
     //     [Some(Tile::Cable {entry: Side::Right, exit: Side::Bottom}), Some(Tile::Battery {plus_side: Side::Left, minus_side: Side::Right}), Some(Tile::N)]
@@ -32,18 +33,177 @@ fn main() {
     //     [None, Some(Tile::Cable {entry: Side::Top, exit: Side::Right}), Some(Tile::Cable {entry: Side::Left, exit: Side::Top})]
     // ];
 
+    /*App::new()
+    .add_plugins(DefaultPlugins
+        .set(window)
+        .set(ImagePlugin::default_nearest())
+    )
+    .insert_resource(ClearColor(BACKGROUND_COLOR))
+    .insert_resource(Grid(grid![]))
+    .add_systems(Startup, setup)
+    .add_systems(PostStartup, |mut commands: Commands| commands.trigger(MakeNewPuzzleRequest))
+    .add_systems(Update, (tile_drag_system, restart_listener))
+    .add_observer(new_puzzle)
+    .run();*/
     App::new()
-        .add_plugins(DefaultPlugins
-            .set(window)
-            .set(ImagePlugin::default_nearest())
+        .add_plugins(
+            DefaultPlugins
+                .set(window)
+                .set(ImagePlugin::default_nearest()),
         )
         .insert_resource(ClearColor(BACKGROUND_COLOR))
-        .insert_resource(Grid(grid![]))
-        .add_systems(Startup, setup)
-        .add_systems(PostStartup, |mut commands: Commands| commands.trigger(MakeNewPuzzleRequest))
-        .add_systems(Update, (tile_drag_system, restart_listener))
+        .init_state::<AppState>()
+        .add_systems(Startup, setup_camera)
+        // Menu Systems
+        .add_systems(OnEnter(AppState::Menu), spawn_menu)
+        .add_systems(OnExit(AppState::Menu), cleanup_menu)
+        // Game Systems
+        .add_systems(OnEnter(AppState::Game), (setup).chain())
+        //.add_systems(OnExit(AppState::Game), cleanup_game)
+        .add_systems(
+            Update,
+            (tile_drag_system, restart_listener).run_if(in_state(AppState::Game)),
+        )
+        .add_systems(PostStartup, |mut commands: Commands| {
+            commands.trigger(MakeNewPuzzleRequest)
+        })
         .add_observer(new_puzzle)
         .run();
+}
+
+#[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
+enum AppState {
+    #[default]
+    Menu,
+    Game,
+}
+
+fn setup_camera(mut commands: Commands) {
+    commands.spawn(Camera2d);
+}
+
+#[derive(Component)]
+#[require(Node, BackgroundColor)]
+struct MenuRoot;
+
+fn spawn_menu(mut commands: Commands) {
+    let root = commands
+        .spawn((
+            MenuRoot,
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(20.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.1, 0.1, 0.1)),
+        ))
+        .id();
+
+    // Title Text
+    let title = commands
+        .spawn((
+            Text::new("Main Menu"),
+            MenuRoot,
+            TextFont {
+                font_size: 60.0,
+                ..default()
+            },
+            TextColor(Color::WHITE),
+        ))
+        .id();
+
+    // Play Button
+    let play_button = commands
+        .spawn((
+            Button,
+            Node {
+                width: Val::Px(200.0),
+                height: Val::Px(65.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                border: UiRect::all(Val::Px(2.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
+            BorderColor::all(Color::BLACK),
+            BorderRadius::all(Val::Px(10.0)),
+        ))
+        // 3. Add an Observer to handle the click
+        .observe(
+            |_trigger: On<Pointer<Click>>, mut next_state: ResMut<NextState<AppState>>| {
+                info!("Play button clicked!");
+                next_state.set(AppState::Game);
+            },
+        )
+        // Add Hover effects using Observers too!
+        .observe(
+            |_: On<Pointer<Over>>, mut bg: Query<&mut BackgroundColor>| {
+                if let Ok(mut color) = bg.single_mut() {
+                    *color = BackgroundColor(Color::srgb(0.4, 0.4, 0.4));
+                }
+            },
+        )
+        .observe(|_: On<Pointer<Out>>, mut bg: Query<&mut BackgroundColor>| {
+            if let Ok(mut color) = bg.single_mut() {
+                *color = BackgroundColor(Color::srgb(0.2, 0.2, 0.2));
+            }
+        })
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Play Game"),
+                TextFont {
+                    font_size: 30.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ));
+        })
+        .id();
+
+    // Quit Button (Example of another button)
+    let quit_button = commands
+        .spawn((
+            Button,
+            Node {
+                width: Val::Px(200.0),
+                height: Val::Px(65.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.5, 0.1, 0.1)),
+            BorderRadius::all(Val::Px(10.0)),
+        ))
+        .observe(|_: On<Pointer<Click>>, mut exit: MessageWriter<AppExit>| {
+            exit.write(AppExit::Success);
+        })
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Quit"),
+                TextFont {
+                    font_size: 30.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ));
+        })
+        .id();
+
+    // Build the hierarchy
+    commands
+        .entity(root)
+        .add_children(&[title, play_button, quit_button]);
+}
+
+// 4. Cleanup System
+fn cleanup_menu(mut commands: Commands, query: Query<Entity, With<MenuRoot>>) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
+    }
 }
 
 #[derive(Resource)]
@@ -69,7 +229,7 @@ enum Side {
     Left,
     Right,
     Bottom,
-    Top
+    Top,
 }
 impl Side {
     fn x_offset(&self) -> i32 {
@@ -97,7 +257,7 @@ enum Tile {
     Battery { plus_side: Side, minus_side: Side },
     Cable { entry: Side, exit: Side },
     P,
-    N
+    N,
 }
 
 #[derive(Resource, Clone, Debug)]
@@ -120,7 +280,10 @@ impl Grid {
     }
 
     fn tile_size(&self) -> f32 {
-        min(WIN_WIDTH / self.width() as u32, WIN_HEIGHT / self.height() as u32) as f32
+        min(
+            WIN_WIDTH / self.width() as u32,
+            WIN_HEIGHT / self.height() as u32,
+        ) as f32
     }
 
     fn start_x(&self) -> f32 {
@@ -136,12 +299,10 @@ impl Grid {
             return None;
         }
 
-        Some(
-            Vec2::new(
-                self.start_x() + x as f32 * self.tile_size(),
-                self.start_y() - y as f32 * self.tile_size()
-            )
-        )
+        Some(Vec2::new(
+            self.start_x() + x as f32 * self.tile_size(),
+            self.start_y() - y as f32 * self.tile_size(),
+        ))
     }
 
     fn xy_from_world_pos(&self, pos: Vec2) -> (usize, usize) {
@@ -150,15 +311,20 @@ impl Grid {
         normalized.x = round(normalized.x);
         normalized.y = round(normalized.y);
 
-        if normalized.x < 0.0 { normalized.x = 0.0; }
-        if normalized.y > 0.0 { normalized.y = 0.0; }
-        if normalized.x >= self.width() as f32 { normalized.x = self.width() as f32 - 1.0; }
-        if normalized.y <= -(self.height() as f32) { normalized.y = self.height() as f32 + 1.0; }
+        if normalized.x < 0.0 {
+            normalized.x = 0.0;
+        }
+        if normalized.y > 0.0 {
+            normalized.y = 0.0;
+        }
+        if normalized.x >= self.width() as f32 {
+            normalized.x = self.width() as f32 - 1.0;
+        }
+        if normalized.y <= -(self.height() as f32) {
+            normalized.y = self.height() as f32 + 1.0;
+        }
 
-        (
-            normalized.x as usize,
-            -normalized.y as usize
-        )
+        (normalized.x as usize, -normalized.y as usize)
     }
 
     fn snap_to_grid(&self, pos: Vec2) -> Vec2 {
@@ -168,10 +334,18 @@ impl Grid {
         normalized.x = round(normalized.x);
         normalized.y = round(normalized.y);
 
-        if normalized.x < 0.0 { normalized.x = 0.0; }
-        if normalized.y > 0.0 { normalized.y = 0.0; }
-        if normalized.x >= self.width() as f32 { normalized.x = self.width() as f32 - 1.0; }
-        if normalized.y <= -(self.height() as f32) { normalized.y = self.height() as f32 + 1.0; }
+        if normalized.x < 0.0 {
+            normalized.x = 0.0;
+        }
+        if normalized.y > 0.0 {
+            normalized.y = 0.0;
+        }
+        if normalized.x >= self.width() as f32 {
+            normalized.x = self.width() as f32 - 1.0;
+        }
+        if normalized.y <= -(self.height() as f32) {
+            normalized.y = self.height() as f32 + 1.0;
+        }
 
         normalized * self.tile_size() + start
     }
@@ -185,51 +359,59 @@ impl Grid {
             return true;
         }
 
-        if let Some(x) = self.get(x1 + 1, y1) && x.is_none() {
+        if let Some(x) = self.get(x1 + 1, y1)
+            && x.is_none()
+        {
             return self.has_unobstructed_path((x1 + 1, y1), (x2, y2));
         }
 
-        if let Some(x) = self.get(x1, y1 + 1) && x.is_none() {
+        if let Some(x) = self.get(x1, y1 + 1)
+            && x.is_none()
+        {
             return self.has_unobstructed_path((x1, y1 + 1), (x2, y2));
         }
 
-        if let Some(x) = self.get(x2 + 1, y2) && x.is_none() {
+        if let Some(x) = self.get(x2 + 1, y2)
+            && x.is_none()
+        {
             return self.has_unobstructed_path((x1, y1), (x2 + 1, y2));
         }
 
-        if let Some(x) = self.get(x2, y2 + 1) && x.is_none() {
+        if let Some(x) = self.get(x2, y2 + 1)
+            && x.is_none()
+        {
             return self.has_unobstructed_path((x1, y1), (x2, y2 + 1));
         }
 
         false
     }
 
-    fn is_solved_helper(&self,
-                        start_x: i32,
-                        start_y: i32,
-                        prev_x: i32,
-                        prev_y: i32,
-                        prev_tile: Tile,
-                        found_lamp_init: bool
+    fn is_solved_helper(
+        &self,
+        start_x: i32,
+        start_y: i32,
+        prev_x: i32,
+        prev_y: i32,
+        prev_tile: Tile,
+        found_lamp_init: bool,
     ) -> bool {
-
         #[derive(Hash, Eq, PartialEq, Copy, Clone)]
         struct StateKey {
             x: i32,
             y: i32,
             prev_x: i32,
             prev_y: i32,
-            prev_kind: u8,   // tile type compressed
+            prev_kind: u8, // tile type compressed
             found_lamp: bool,
         }
 
         fn tile_kind(t: Tile) -> u8 {
             match t {
-                Tile::Battery{..} => 0,
-                Tile::Lamp{..}    => 1,
-                Tile::Cable{..}   => 2,
-                Tile::P           => 3,
-                Tile::N           => 4,
+                Tile::Battery { .. } => 0,
+                Tile::Lamp { .. } => 1,
+                Tile::Cable { .. } => 2,
+                Tile::P => 3,
+                Tile::N => 4,
             }
         }
 
@@ -238,11 +420,12 @@ impl Grid {
         let mut stack = vec![(start_x, start_y, prev_x, prev_y, prev_tile, found_lamp_init)];
 
         while let Some((x, y, prev_x, prev_y, prev_tile, found_lamp)) = stack.pop() {
-
             // State key
             let key = StateKey {
-                x, y,
-                prev_x, prev_y,
+                x,
+                y,
+                prev_x,
+                prev_y,
                 prev_kind: tile_kind(prev_tile),
                 found_lamp,
             };
@@ -274,10 +457,20 @@ impl Grid {
                     if (x + entry.x_offset(), y + entry.y_offset()) != (prev_x, prev_y) {
                         continue;
                     }
-                    stack.push((x + exit.x_offset(), y + exit.y_offset(), x, y, *tile, found_lamp));
+                    stack.push((
+                        x + exit.x_offset(),
+                        y + exit.y_offset(),
+                        x,
+                        y,
+                        *tile,
+                        found_lamp,
+                    ));
                 }
 
-                Tile::Battery { plus_side: _, minus_side } => {
+                Tile::Battery {
+                    plus_side: _,
+                    minus_side,
+                } => {
                     if (x + minus_side.x_offset(), y + minus_side.y_offset()) != (prev_x, prev_y) {
                         continue;
                     }
@@ -291,7 +484,9 @@ impl Grid {
                         let nx = x + side.x_offset();
                         let ny = y + side.y_offset();
 
-                        if nx < 0 || ny < 0 { continue; }
+                        if nx < 0 || ny < 0 {
+                            continue;
+                        }
 
                         if let Some(Some(Tile::N)) = self.get(nx as usize, ny as usize) {
                             stack.push((nx, ny, x, y, *tile, found_lamp));
@@ -317,36 +512,43 @@ impl Grid {
 
     fn is_solved(&self) -> bool {
         let mut found_battery = false;
-        let (mut battery_x, mut battery_y, mut plus_side, mut minus_side) = (0, 0, Side::Left, Side::Right);
+        let (mut battery_x, mut battery_y, mut plus_side, mut minus_side) =
+            (0, 0, Side::Left, Side::Right);
         'outer: for x in 0..self.width() {
             for y in 0..self.height() {
-                if let Some(Tile::Battery { plus_side: plus, minus_side: minus }) = self.get(x, y).unwrap() {
+                if let Some(Tile::Battery {
+                    plus_side: plus,
+                    minus_side: minus,
+                }) = self.get(x, y).unwrap()
+                {
                     (battery_x, battery_y, plus_side, minus_side) = (x, y, *plus, *minus);
                     found_battery = true;
                     break 'outer;
                 }
             }
-        };
+        }
 
-        if !found_battery { return false; }
+        if !found_battery {
+            return false;
+        }
 
         self.is_solved_helper(
             battery_x as i32 + plus_side.x_offset(),
             battery_y as i32 + plus_side.y_offset(),
             battery_x as i32,
             battery_y as i32,
-            Tile::Battery { plus_side, minus_side },
-            false
+            Tile::Battery {
+                plus_side,
+                minus_side,
+            },
+            false,
         )
     }
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Camera
-    commands.spawn(Camera2d);
+    //commands.spawn(Camera2d);
 
     // Load Sounds
     commands.insert_resource(Sounds {
@@ -390,10 +592,13 @@ fn get_path_to_start_sprite_for_tile(tile: &Tile) -> &'static str {
             (Side::Top, Side::Bottom) => "sprites/lamp_off_top_to_bottom.png",
             (Side::Top, Side::Left) => "sprites/lamp_off_top_to_left.png",
 
-            _ => panic!()
+            _ => panic!(),
         },
 
-        Tile::Battery { plus_side, minus_side } => match (plus_side, minus_side) {
+        Tile::Battery {
+            plus_side,
+            minus_side,
+        } => match (plus_side, minus_side) {
             (Side::Right, Side::Bottom) => "sprites/battery_plus_right_minus_bottom.png",
             (Side::Right, Side::Left) => "sprites/battery_plus_right_minus_left.png",
             (Side::Right, Side::Top) => "sprites/battery_plus_right_minus_top.png",
@@ -410,8 +615,8 @@ fn get_path_to_start_sprite_for_tile(tile: &Tile) -> &'static str {
             (Side::Top, Side::Bottom) => "sprites/battery_plus_top_minus_bottom.png",
             (Side::Top, Side::Left) => "sprites/battery_plus_top_minus_left.png",
 
-            _ => panic!()
-        }
+            _ => panic!(),
+        },
 
         Tile::Cable { entry, exit } => match (entry, exit) {
             (Side::Right, Side::Bottom) => "sprites/cable_right_to_bottom.png",
@@ -430,13 +635,15 @@ fn get_path_to_start_sprite_for_tile(tile: &Tile) -> &'static str {
             (Side::Top, Side::Bottom) => "sprites/cable_top_to_bottom.png",
             (Side::Top, Side::Left) => "sprites/cable_top_to_left.png",
 
-            _ => panic!()
-        }
+            _ => panic!(),
+        },
     }
 }
 
 fn get_path_to_lamp_on_sprite_for_tile(tile: &Tile) -> &'static str {
-    let Tile::Lamp { entry, exit } = tile else { unreachable!() };
+    let Tile::Lamp { entry, exit } = tile else {
+        unreachable!()
+    };
     match (entry, exit) {
         (Side::Right, Side::Bottom) => "sprites/lamp_on_right_to_bottom.png",
         (Side::Right, Side::Left) => "sprites/lamp_on_right_to_left.png",
@@ -454,19 +661,35 @@ fn get_path_to_lamp_on_sprite_for_tile(tile: &Tile) -> &'static str {
         (Side::Top, Side::Bottom) => "sprites/lamp_on_top_to_bottom.png",
         (Side::Top, Side::Left) => "sprites/lamp_on_top_to_left.png",
 
-        _ => panic!()
+        _ => panic!(),
     }
 }
 
 #[derive(Event)]
 struct MakeNewPuzzleRequest;
 
+fn cleanup_game(
+    mut commands: Commands,
+    tiles: Query<Entity, With<TileComponent>>,
+    grid_lines: Query<Entity, With<GridLine>>,
+) {
+    // Delete previous tiles
+    for entity in tiles.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    // Delete previous grid lines
+    for entity in grid_lines.iter() {
+        commands.entity(entity).despawn();
+    }
+}
+
 fn new_puzzle(
     _event: On<MakeNewPuzzleRequest>,
     mut commands: Commands,
     tiles: Query<(Entity, &TileComponent)>,
     grid_lines: Query<Entity, With<GridLine>>,
-    asset_server: Res<AssetServer>
+    asset_server: Res<AssetServer>,
 ) {
     // Delete Previous tiles
     for (entity, _) in tiles.iter() {
@@ -521,6 +744,7 @@ fn new_puzzle(
         ));
     }
 
+    // Tiles
     for x in 0..grid.width() {
         for y in 0..grid.height() {
             let tile = grid.get(x, y).unwrap();
@@ -534,14 +758,14 @@ fn new_puzzle(
             let pos = grid.world_pos_from_xy(x, y).unwrap();
 
             commands.spawn((
-                TileComponent{ x, y },
+                TileComponent { x, y },
                 Anchor::TOP_LEFT,
                 Sprite {
                     image: sprite,
                     custom_size: Some(tile_size),
                     ..default()
                 },
-                Transform::from_translation(Vec3::new(pos.x, pos.y, 0.0))
+                Transform::from_translation(Vec3::new(pos.x, pos.y, 0.0)),
             ));
         }
     }
@@ -550,52 +774,121 @@ fn new_puzzle(
 fn generate_puzzle() -> Grid {
     let possible_tiles = [
         vec![
-            Some(Tile::Cable {entry: Side::Right, exit: Side::Bottom}),
-            Some(Tile::Battery {plus_side: Side::Left, minus_side: Side::Right}),
+            Some(Tile::Cable {
+                entry: Side::Right,
+                exit: Side::Bottom,
+            }),
+            Some(Tile::Battery {
+                plus_side: Side::Left,
+                minus_side: Side::Right,
+            }),
             Some(Tile::N),
-            Some(Tile::Cable {entry: Side::Top, exit: Side::Right}),
-            Some(Tile::Lamp {entry: Side::Left, exit: Side::Bottom}),
+            Some(Tile::Cable {
+                entry: Side::Top,
+                exit: Side::Right,
+            }),
+            Some(Tile::Lamp {
+                entry: Side::Left,
+                exit: Side::Bottom,
+            }),
             Some(Tile::P),
             None,
-            Some(Tile::Cable {entry: Side::Top, exit: Side::Right}),
-            Some(Tile::Cable {entry: Side::Left, exit: Side::Top})
+            Some(Tile::Cable {
+                entry: Side::Top,
+                exit: Side::Right,
+            }),
+            Some(Tile::Cable {
+                entry: Side::Left,
+                exit: Side::Top,
+            }),
         ],
-
         vec![
             Some(Tile::N),
             Some(Tile::P),
             None,
-            Some(Tile::Cable {entry: Side::Top, exit: Side::Bottom}),
-            Some(Tile::Battery {plus_side: Side::Top, minus_side: Side::Right}),
-            Some(Tile::Lamp { entry: Side::Bottom, exit: Side::Left}),
-            Some(Tile::Cable {entry: Side::Top, exit: Side::Right}),
-            Some(Tile::Cable {entry: Side::Left, exit: Side::Right}),
-            Some(Tile::Cable {entry: Side::Left, exit: Side::Top})
+            Some(Tile::Cable {
+                entry: Side::Top,
+                exit: Side::Bottom,
+            }),
+            Some(Tile::Battery {
+                plus_side: Side::Top,
+                minus_side: Side::Right,
+            }),
+            Some(Tile::Lamp {
+                entry: Side::Bottom,
+                exit: Side::Left,
+            }),
+            Some(Tile::Cable {
+                entry: Side::Top,
+                exit: Side::Right,
+            }),
+            Some(Tile::Cable {
+                entry: Side::Left,
+                exit: Side::Right,
+            }),
+            Some(Tile::Cable {
+                entry: Side::Left,
+                exit: Side::Top,
+            }),
         ],
-
         vec![
             Some(Tile::N),
             Some(Tile::P),
             None,
-            Some(Tile::Cable {entry: Side::Top, exit: Side::Bottom}),
-            Some(Tile::Cable {entry: Side::Bottom, exit: Side::Right}),
-            Some(Tile::Cable {entry: Side::Left, exit: Side::Top}),
-            Some(Tile::Cable {entry: Side::Bottom, exit: Side::Left}),
-            Some(Tile::Lamp {entry: Side::Right, exit: Side::Left}),
-            Some(Tile::Battery {plus_side: Side::Bottom, minus_side: Side::Right}),
+            Some(Tile::Cable {
+                entry: Side::Top,
+                exit: Side::Bottom,
+            }),
+            Some(Tile::Cable {
+                entry: Side::Bottom,
+                exit: Side::Right,
+            }),
+            Some(Tile::Cable {
+                entry: Side::Left,
+                exit: Side::Top,
+            }),
+            Some(Tile::Cable {
+                entry: Side::Bottom,
+                exit: Side::Left,
+            }),
+            Some(Tile::Lamp {
+                entry: Side::Right,
+                exit: Side::Left,
+            }),
+            Some(Tile::Battery {
+                plus_side: Side::Bottom,
+                minus_side: Side::Right,
+            }),
         ],
-
         vec![
             None,
             Some(Tile::N),
             Some(Tile::P),
-            Some(Tile::Battery {plus_side: Side::Left, minus_side: Side::Top}),
-            Some(Tile::Cable {entry: Side::Right, exit: Side::Left}),
-            Some(Tile::Lamp {entry: Side::Right, exit: Side::Top}),
-            Some(Tile::Cable {entry: Side::Bottom, exit: Side::Right}),
-            Some(Tile::Cable {entry: Side::Left, exit: Side::Top}),
-            Some(Tile::Cable {entry: Side::Bottom, exit: Side::Right}),
-        ]
+            Some(Tile::Battery {
+                plus_side: Side::Left,
+                minus_side: Side::Top,
+            }),
+            Some(Tile::Cable {
+                entry: Side::Right,
+                exit: Side::Left,
+            }),
+            Some(Tile::Lamp {
+                entry: Side::Right,
+                exit: Side::Top,
+            }),
+            Some(Tile::Cable {
+                entry: Side::Bottom,
+                exit: Side::Right,
+            }),
+            Some(Tile::Cable {
+                entry: Side::Left,
+                exit: Side::Top,
+            }),
+            Some(Tile::Cable {
+                entry: Side::Bottom,
+                exit: Side::Right,
+            }),
+        ],
     ];
 
     let mut tiles = possible_tiles[rand::random_range(..possible_tiles.len())].clone();
@@ -605,16 +898,17 @@ fn generate_puzzle() -> Grid {
     Grid(grid)
 }
 
-fn restart_listener(
-    input: Res<ButtonInput<KeyCode>>,
-    mut commands: Commands,
-) {
+fn restart_listener(input: Res<ButtonInput<KeyCode>>, mut commands: Commands) {
     if input.just_pressed(KeyCode::KeyR) {
         commands.trigger(MakeNewPuzzleRequest);
     }
 }
 
-struct TileDragSystemCurrent{entity: Entity, offset_from_cursor: Vec2, start_pos: Vec3}
+struct TileDragSystemCurrent {
+    entity: Entity,
+    offset_from_cursor: Vec2,
+    start_pos: Vec3,
+}
 #[derive(Default, Component)]
 struct TileDragSystemState {
     cursor_world_pos: Vec2,
@@ -641,7 +935,9 @@ fn tile_drag_system(
     };
 
     // Drop
-    if mouse_button_input.just_released(MouseButton::Left) && let Some(current) = &state.current {
+    if mouse_button_input.just_released(MouseButton::Left)
+        && let Some(current) = &state.current
+    {
         let mut sprite_pos = transforms.get_mut(current.entity).unwrap();
         let (start_x, start_y) = grid.xy_from_world_pos(current.start_pos.xy());
 
@@ -666,10 +962,10 @@ fn tile_drag_system(
             let is_solved = grid.is_solved();
 
             for (_, tile, mut sprite) in tiles.iter_mut() {
-                                if let Some(lamp @ Tile::Lamp { .. }) = grid.get(tile.x, tile.y).unwrap() {
+                if let Some(lamp @ Tile::Lamp { .. }) = grid.get(tile.x, tile.y).unwrap() {
                     sprite.image = asset_server.load(match is_solved {
                         true => get_path_to_lamp_on_sprite_for_tile(lamp),
-                        false => get_path_to_start_sprite_for_tile(lamp)
+                        false => get_path_to_start_sprite_for_tile(lamp),
                     });
                 }
             }
@@ -678,31 +974,25 @@ fn tile_drag_system(
                 // Audio
                 commands.spawn((
                     AudioPlayer::new(sounds.lamp_turns_on.clone()),
-                    PlaybackSettings::DESPAWN
+                    PlaybackSettings::DESPAWN,
                 ));
             }
 
             // Audio
-            commands.spawn((
-                AudioPlayer::new(sounds.drop.clone()),
-                {
-                    let mut settings = PlaybackSettings::DESPAWN;
-                    settings.volume = Volume::Linear(0.25);
-                    settings
-                }
-            ));
+            commands.spawn((AudioPlayer::new(sounds.drop.clone()), {
+                let mut settings = PlaybackSettings::DESPAWN;
+                settings.volume = Volume::Linear(0.25);
+                settings
+            }));
         } else {
             sprite_pos.translation = current.start_pos.truncate().extend(0.0);
 
             // Audio
-            commands.spawn((
-                AudioPlayer::new(sounds.misdrop.clone()),
-                {
-                    let mut settings = PlaybackSettings::DESPAWN;
-                    settings.volume = Volume::Linear(0.2);
-                    settings
-                }
-            ));
+            commands.spawn((AudioPlayer::new(sounds.misdrop.clone()), {
+                let mut settings = PlaybackSettings::DESPAWN;
+                settings.volume = Volume::Linear(0.2);
+                settings
+            }));
         }
 
         state.current = None;
@@ -710,7 +1000,9 @@ fn tile_drag_system(
     }
 
     // Drag
-    if mouse_button_input.pressed(MouseButton::Left) && let Some(current) = &state.current {
+    if mouse_button_input.pressed(MouseButton::Left)
+        && let Some(current) = &state.current
+    {
         let mut sprite_pos = transforms.get_mut(current.entity).unwrap();
 
         sprite_pos.translation.x = state.cursor_world_pos.x + current.offset_from_cursor.x;
@@ -721,7 +1013,12 @@ fn tile_drag_system(
     // Start drag
     if mouse_button_input.just_pressed(MouseButton::Left) {
         for (entity, _, sprite) in tiles.iter_mut() {
-            let sprite_pos = transforms.get_mut(entity).unwrap().translation.truncate().extend(10.0);
+            let sprite_pos = transforms
+                .get_mut(entity)
+                .unwrap()
+                .translation
+                .truncate()
+                .extend(10.0);
             let cursor_pos = state.cursor_world_pos;
 
             let sprite_size = sprite.custom_size.unwrap();
@@ -729,26 +1026,23 @@ fn tile_drag_system(
             if cursor_pos.x >= sprite_pos.x
                 && cursor_pos.x <= sprite_pos.x + sprite_size.x
                 && cursor_pos.y <= sprite_pos.y
-                && cursor_pos.y >= sprite_pos.y - sprite_size.y {
-
+                && cursor_pos.y >= sprite_pos.y - sprite_size.y
+            {
                 state.current = Some(TileDragSystemCurrent {
                     entity,
                     offset_from_cursor: Vec2::new(
                         sprite_pos.x - cursor_pos.x,
-                        sprite_pos.y - cursor_pos.y
+                        sprite_pos.y - cursor_pos.y,
                     ),
                     start_pos: sprite_pos,
                 });
 
                 // Audio
-                commands.spawn((
-                    AudioPlayer::new(sounds.start_drag.clone()),
-                    {
-                        let mut settings = PlaybackSettings::DESPAWN;
-                        settings.volume = Volume::Linear(0.25);
-                        settings
-                    }
-                ));
+                commands.spawn((AudioPlayer::new(sounds.start_drag.clone()), {
+                    let mut settings = PlaybackSettings::DESPAWN;
+                    settings.volume = Volume::Linear(0.25);
+                    settings
+                }));
             }
         }
     }
