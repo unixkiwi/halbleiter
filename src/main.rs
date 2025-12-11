@@ -3,7 +3,6 @@ use bevy::math::ops::round;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy::window::WindowResolution;
-use grid::grid;
 use rand::prelude::SliceRandom;
 use rand::rng;
 use std::cmp::min;
@@ -11,7 +10,7 @@ use std::collections::HashSet;
 
 const WIN_TITLE: &str = "Halbleiter";
 
-const WIN_WIDTH: u32 = 1280;
+const WIN_WIDTH: u32 = 1500;
 const WIN_HEIGHT: u32 = 720;
 
 const BACKGROUND_COLOR: Color = Color::srgb(0.1, 0.1, 0.1);
@@ -45,6 +44,8 @@ fn main() {
     .add_systems(Update, (tile_drag_system, restart_listener))
     .add_observer(new_puzzle)
     .run();*/
+
+
     App::new()
         .add_plugins(
             DefaultPlugins
@@ -59,7 +60,6 @@ fn main() {
         .add_systems(OnExit(AppState::Menu), cleanup_menu)
         // Game Systems
         .add_systems(OnEnter(AppState::Game), (setup).chain())
-        //.add_systems(OnExit(AppState::Game), cleanup_game)
         .add_systems(
             Update,
             (tile_drag_system, restart_listener).run_if(in_state(AppState::Game)),
@@ -81,6 +81,10 @@ enum AppState {
 fn setup_camera(mut commands: Commands) {
     commands.spawn(Camera2d);
 }
+
+// -------------------------------------------------------------------------------------------------
+// MENU
+// -------------------------------------------------------------------------------------------------
 
 #[derive(Component)]
 #[require(Node, BackgroundColor)]
@@ -107,7 +111,6 @@ fn spawn_menu(mut commands: Commands) {
     let title = commands
         .spawn((
             Text::new("Main Menu"),
-            MenuRoot,
             TextFont {
                 font_size: 60.0,
                 ..default()
@@ -132,26 +135,12 @@ fn spawn_menu(mut commands: Commands) {
             BorderColor::all(Color::BLACK),
             BorderRadius::all(Val::Px(10.0)),
         ))
-        // 3. Add an Observer to handle the click
         .observe(
             |_trigger: On<Pointer<Click>>, mut next_state: ResMut<NextState<AppState>>| {
                 info!("Play button clicked!");
                 next_state.set(AppState::Game);
             },
         )
-        // Add Hover effects using Observers too!
-        .observe(
-            |_: On<Pointer<Over>>, mut bg: Query<&mut BackgroundColor>| {
-                if let Ok(mut color) = bg.single_mut() {
-                    *color = BackgroundColor(Color::srgb(0.4, 0.4, 0.4));
-                }
-            },
-        )
-        .observe(|_: On<Pointer<Out>>, mut bg: Query<&mut BackgroundColor>| {
-            if let Ok(mut color) = bg.single_mut() {
-                *color = BackgroundColor(Color::srgb(0.2, 0.2, 0.2));
-            }
-        })
         .with_children(|parent| {
             parent.spawn((
                 Text::new("Play Game"),
@@ -164,7 +153,7 @@ fn spawn_menu(mut commands: Commands) {
         })
         .id();
 
-    // Quit Button (Example of another button)
+    // Quit Button
     let quit_button = commands
         .spawn((
             Button,
@@ -193,7 +182,7 @@ fn spawn_menu(mut commands: Commands) {
         })
         .id();
 
-    // Build the hierarchy
+    // Build screen hierarchy
     commands
         .entity(root)
         .add_children(&[title, play_button, quit_button]);
@@ -206,6 +195,9 @@ fn cleanup_menu(mut commands: Commands, query: Query<Entity, With<MenuRoot>>) {
     }
 }
 
+// -------------------------------------------------------------------------------------------------
+// GAME
+// -------------------------------------------------------------------------------------------------
 #[derive(Resource)]
 struct Sounds {
     drop: Handle<AudioSource>,
@@ -547,9 +539,6 @@ impl Grid {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Camera
-    //commands.spawn(Camera2d);
-
     // Load Sounds
     commands.insert_resource(Sounds {
         drop: asset_server.load("audio/drop.wav"),
@@ -560,12 +549,16 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     // Restart Text
     commands.spawn((
-        Text::new("Press 'R' to play a new puzzle"),
         Node {
             position_type: PositionType::Absolute,
             top: px(5),
             left: px(10),
             ..default()
+        },
+        Text::new("Druecke 'R' um ein neues Puzzle\nzu generieren"),
+        TextFont {
+            font_size: 20.0,
+            ..Default::default()
         },
     ));
 }
