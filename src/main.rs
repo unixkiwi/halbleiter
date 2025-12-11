@@ -48,6 +48,7 @@ fn main() {
         .add_systems(OnEnter(AppState::Game), |mut commands: Commands| {
             commands.trigger(MakeNewPuzzleRequest)
         })
+        .add_systems(OnExit(AppState::Game), cleanup_puzzle)
         .add_observer(new_puzzle)
         .run();
 }
@@ -601,8 +602,43 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         misdrop: asset_server.load("audio/misdrop.wav"),
     });
 
+    // Buttons
+    commands
+        .spawn((
+            Button,
+            Node {
+                position_type: PositionType::Absolute,
+                top: px(5),
+                left: px(10),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
+            BorderColor::all(Color::BLACK),
+            BorderRadius::all(Val::Px(10.0)),
+        ))
+        .observe(
+            |_trigger: On<Pointer<Click>>,
+             mut next_app_state: ResMut<NextState<AppState>>,
+             mut next_level_state: ResMut<NextState<LevelState>>| {
+                info!("Back BTN clicked!");
+                next_app_state.set(AppState::Menu);
+                next_level_state.set(LevelState::Menu);
+            },
+        )
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Zurueck zum Menu"),
+                TextFont {
+                    font_size: 30.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ));
+        });
+    //TODO cleanup back btn
+
     // Restart Text
-    commands.spawn((
+    /*    commands.spawn((
         Node {
             position_type: PositionType::Absolute,
             top: px(5),
@@ -614,7 +650,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             font_size: 20.0,
             ..Default::default()
         },
-    ));
+    ));*/
 }
 
 fn get_path_to_start_sprite_for_tile(tile: &Tile) -> &'static str {
@@ -716,19 +752,23 @@ fn get_path_to_lamp_on_sprite_for_tile(tile: &Tile) -> &'static str {
 struct MakeNewPuzzleRequest;
 
 fn cleanup_puzzle(
-    commands: &mut Commands,
-    tiles: Query<(Entity, &TileComponent)>,
+    mut commands: Commands,
+    tiles: Query<Entity, With<TileComponent>>,
     grid_lines: Query<Entity, With<GridLine>>,
 ) {
-    // Delete previous tiles
-    for (entity, _) in tiles.iter() {
+    // Despawn tile entities (and any children)
+    for entity in tiles.iter() {
         commands.entity(entity).despawn();
     }
 
-    // Delete Previous grid lines
+    // Despawn grid lines
     for entity in grid_lines.iter() {
         commands.entity(entity).despawn();
     }
+
+    // Remove runtime resources if present
+    commands.remove_resource::<Grid>();
+    commands.remove_resource::<Sounds>();
 }
 
 fn new_puzzle(
@@ -739,7 +779,15 @@ fn new_puzzle(
     asset_server: Res<AssetServer>,
     level_state: Res<State<LevelState>>,
 ) {
-    cleanup_puzzle(&mut commands, tiles, grid_lines);
+    // Delete previous tiles
+    for (entity, _) in tiles.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    // Delete Previous grid lines
+    for entity in grid_lines.iter() {
+        commands.entity(entity).despawn();
+    }
 
     // Create New;
     let grid = generate_puzzle(level_state);
