@@ -26,26 +26,6 @@ fn main() {
         ..default()
     };
 
-    // let grid = grid::grid![
-    //     [Some(Tile::Cable {entry: Side::Right, exit: Side::Bottom}), Some(Tile::Battery {plus_side: Side::Left, minus_side: Side::Right}), Some(Tile::N)]
-    //     [Some(Tile::Cable {entry: Side::Top, exit: Side::Right}), Some(Tile::Lamp {entry: Side::Left, exit: Side::Bottom}), Some(Tile::P)]
-    //     [None, Some(Tile::Cable {entry: Side::Top, exit: Side::Right}), Some(Tile::Cable {entry: Side::Left, exit: Side::Top})]
-    // ];
-
-    /*App::new()
-    .add_plugins(DefaultPlugins
-        .set(window)
-        .set(ImagePlugin::default_nearest())
-    )
-    .insert_resource(ClearColor(BACKGROUND_COLOR))
-    .insert_resource(Grid(grid![]))
-    .add_systems(Startup, setup)
-    .add_systems(PostStartup, |mut commands: Commands| commands.trigger(MakeNewPuzzleRequest))
-    .add_systems(Update, (tile_drag_system, restart_listener))
-    .add_observer(new_puzzle)
-    .run();*/
-
-
     App::new()
         .add_plugins(
             DefaultPlugins
@@ -54,6 +34,7 @@ fn main() {
         )
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .init_state::<AppState>()
+        .init_state::<LevelState>()
         .add_systems(Startup, setup_camera)
         // Menu Systems
         .add_systems(OnEnter(AppState::Menu), spawn_menu)
@@ -64,7 +45,7 @@ fn main() {
             Update,
             (tile_drag_system, restart_listener).run_if(in_state(AppState::Game)),
         )
-        .add_systems(PostStartup, |mut commands: Commands| {
+        .add_systems(OnEnter(AppState::Game), |mut commands: Commands| {
             commands.trigger(MakeNewPuzzleRequest)
         })
         .add_observer(new_puzzle)
@@ -78,6 +59,15 @@ enum AppState {
     Game,
 }
 
+#[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
+enum LevelState {
+    #[default]
+    Menu,
+    Easy,
+    Medium,
+    Hard,
+}
+
 fn setup_camera(mut commands: Commands) {
     commands.spawn(Camera2d);
 }
@@ -89,6 +79,44 @@ fn setup_camera(mut commands: Commands) {
 #[derive(Component)]
 #[require(Node, BackgroundColor)]
 struct MenuRoot;
+
+fn spawn_button(
+    commands: &mut Commands,
+    label: &str,
+    on_click: fn(
+        _trigger: On<Pointer<Click>>,
+        next_app_state: ResMut<NextState<AppState>>,
+        next_level_state: ResMut<NextState<LevelState>>,
+    ),
+) -> Entity {
+    commands
+        .spawn((
+            Button,
+            Node {
+                width: Val::Px(200.0),
+                height: Val::Px(65.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                border: UiRect::all(Val::Px(2.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
+            BorderColor::all(Color::BLACK),
+            BorderRadius::all(Val::Px(10.0)),
+        ))
+        .observe(on_click)
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new(label),
+                TextFont {
+                    font_size: 30.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ));
+        })
+        .id()
+}
 
 fn spawn_menu(mut commands: Commands) {
     let root = commands
@@ -119,39 +147,44 @@ fn spawn_menu(mut commands: Commands) {
         ))
         .id();
 
-    // Play Button
-    let play_button = commands
-        .spawn((
-            Button,
-            Node {
-                width: Val::Px(200.0),
-                height: Val::Px(65.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                border: UiRect::all(Val::Px(2.0)),
-                ..default()
-            },
-            BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
-            BorderColor::all(Color::BLACK),
-            BorderRadius::all(Val::Px(10.0)),
-        ))
-        .observe(
-            |_trigger: On<Pointer<Click>>, mut next_state: ResMut<NextState<AppState>>| {
-                info!("Play button clicked!");
-                next_state.set(AppState::Game);
-            },
-        )
-        .with_children(|parent| {
-            parent.spawn((
-                Text::new("Play Game"),
-                TextFont {
-                    font_size: 30.0,
-                    ..default()
-                },
-                TextColor(Color::WHITE),
-            ));
-        })
-        .id();
+    // LEVEL EASY BUTTON
+    let easy_button = spawn_button(
+        &mut commands,
+        "EASY",
+        |_trigger: On<Pointer<Click>>,
+         mut next_app_state: ResMut<NextState<AppState>>,
+         mut next_level_state: ResMut<NextState<LevelState>>| {
+            info!("Easy button clicked!");
+            next_app_state.set(AppState::Game);
+            next_level_state.set(LevelState::Easy);
+        },
+    );
+
+    // LEVEL MEDIUM BUTTON
+    let medium_button = spawn_button(
+        &mut commands,
+        "MEDIUM",
+        |_trigger: On<Pointer<Click>>,
+         mut next_app_state: ResMut<NextState<AppState>>,
+         mut next_level_state: ResMut<NextState<LevelState>>| {
+            info!("Medium button clicked!");
+            next_app_state.set(AppState::Game);
+            next_level_state.set(LevelState::Medium);
+        },
+    );
+
+    // LEVEL HARD BUTTON
+    let hard_button = spawn_button(
+        &mut commands,
+        "HARD",
+        |_trigger: On<Pointer<Click>>,
+         mut next_app_state: ResMut<NextState<AppState>>,
+         mut next_level_state: ResMut<NextState<LevelState>>| {
+            info!("Hard button clicked!");
+            next_app_state.set(AppState::Game);
+            next_level_state.set(LevelState::Hard);
+        },
+    );
 
     // Quit Button
     let quit_button = commands
@@ -183,9 +216,13 @@ fn spawn_menu(mut commands: Commands) {
         .id();
 
     // Build screen hierarchy
-    commands
-        .entity(root)
-        .add_children(&[title, play_button, quit_button]);
+    commands.entity(root).add_children(&[
+        title,
+        easy_button,
+        medium_button,
+        hard_button,
+        quit_button,
+    ]);
 }
 
 // 4. Cleanup System
@@ -348,6 +385,23 @@ impl Grid {
         }
 
         if x1 == x2 && (y1 + 1 == y2 || y2 + 1 == y1) {
+            return true;
+        }
+
+        // Diagonal
+        if (x1 + 1 == x2) && (y1 + 1 == y2) {
+            return true;
+        }
+
+        if (x2 + 1 == x1) && (y2 + 1 == y1) {
+            return true;
+        }
+
+        if (x1 + 1 == x2) && (y2 + 1 == y1) {
+            return true;
+        }
+
+        if (x2 + 1 == x1) && (y1 + 1 == y2) {
             return true;
         }
 
@@ -661,17 +715,17 @@ fn get_path_to_lamp_on_sprite_for_tile(tile: &Tile) -> &'static str {
 #[derive(Event)]
 struct MakeNewPuzzleRequest;
 
-fn cleanup_game(
-    mut commands: Commands,
-    tiles: Query<Entity, With<TileComponent>>,
+fn cleanup_puzzle(
+    commands: &mut Commands,
+    tiles: Query<(Entity, &TileComponent)>,
     grid_lines: Query<Entity, With<GridLine>>,
 ) {
     // Delete previous tiles
-    for entity in tiles.iter() {
+    for (entity, _) in tiles.iter() {
         commands.entity(entity).despawn();
     }
 
-    // Delete previous grid lines
+    // Delete Previous grid lines
     for entity in grid_lines.iter() {
         commands.entity(entity).despawn();
     }
@@ -683,19 +737,12 @@ fn new_puzzle(
     tiles: Query<(Entity, &TileComponent)>,
     grid_lines: Query<Entity, With<GridLine>>,
     asset_server: Res<AssetServer>,
+    level_state: Res<State<LevelState>>,
 ) {
-    // Delete Previous tiles
-    for (entity, _) in tiles.iter() {
-        commands.entity(entity).despawn();
-    }
+    cleanup_puzzle(&mut commands, tiles, grid_lines);
 
-    // Delete Previous grid lines
-    for entity in grid_lines.iter() {
-        commands.entity(entity).despawn();
-    }
-
-    // Create New
-    let grid = generate_puzzle();
+    // Create New;
+    let grid = generate_puzzle(level_state);
     commands.insert_resource(grid.clone());
 
     // UI
@@ -763,38 +810,44 @@ fn new_puzzle(
         }
     }
 }
+fn generate_puzzle(level_state: Res<State<LevelState>>) -> Grid {
+    let mut easy = vec![
+        Some(Tile::Cable {
+            entry: Side::Right,
+            exit: Side::Bottom,
+        }),
+        Some(Tile::Battery {
+            plus_side: Side::Left,
+            minus_side: Side::Right,
+        }),
+        Some(Tile::N),
+        Some(Tile::Cable {
+            entry: Side::Top,
+            exit: Side::Right,
+        }),
+        Some(Tile::Lamp {
+            entry: Side::Left,
+            exit: Side::Bottom,
+        }),
+        Some(Tile::P),
+        None,
+        Some(Tile::Cable {
+            entry: Side::Top,
+            exit: Side::Right,
+        }),
+        Some(Tile::Cable {
+            entry: Side::Left,
+            exit: Side::Top,
+        }),
+    ];
 
-fn generate_puzzle() -> Grid {
+    // ADD OTHER LEVELS HERE
+    if level_state.get() == &LevelState::Easy {
+        easy.shuffle(&mut rng());
+        return Grid(grid::Grid::from_vec(easy, 3));
+    }
+
     let possible_tiles = [
-        vec![
-            Some(Tile::Cable {
-                entry: Side::Right,
-                exit: Side::Bottom,
-            }),
-            Some(Tile::Battery {
-                plus_side: Side::Left,
-                minus_side: Side::Right,
-            }),
-            Some(Tile::N),
-            Some(Tile::Cable {
-                entry: Side::Top,
-                exit: Side::Right,
-            }),
-            Some(Tile::Lamp {
-                entry: Side::Left,
-                exit: Side::Bottom,
-            }),
-            Some(Tile::P),
-            None,
-            Some(Tile::Cable {
-                entry: Side::Top,
-                exit: Side::Right,
-            }),
-            Some(Tile::Cable {
-                entry: Side::Left,
-                exit: Side::Top,
-            }),
-        ],
         vec![
             Some(Tile::N),
             Some(Tile::P),
