@@ -1,5 +1,7 @@
 use bevy::audio::Volume;
+use bevy::core_pipeline::tonemapping::{DebandDither, Tonemapping};
 use bevy::math::ops::round;
+use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy::window::WindowResolution;
@@ -40,7 +42,7 @@ fn main() {
         .add_systems(OnEnter(AppState::Menu), spawn_menu)
         .add_systems(OnExit(AppState::Menu), cleanup_menu)
         // Game Systems
-        .add_systems(OnEnter(AppState::Game), (setup).chain())
+        .add_systems(OnEnter(AppState::Game), setup.chain())
         .add_systems(
             Update,
             (tile_drag_system, restart_listener).run_if(in_state(AppState::Game)),
@@ -70,7 +72,7 @@ enum LevelState {
 }
 
 fn setup_camera(mut commands: Commands) {
-    commands.spawn(Camera2d);
+    commands.spawn((Camera2d, Tonemapping::None, DebandDither::default()));
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -593,6 +595,10 @@ impl Grid {
     }
 }
 
+#[derive(Component)]
+#[require(Node)]
+struct ButtonRoot;
+
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Load Sounds
     commands.insert_resource(Sounds {
@@ -603,15 +609,31 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     });
 
     // Buttons
-    commands
+    let button_root = commands
         .spawn((
-            Button,
+            ButtonRoot,
             Node {
                 position_type: PositionType::Absolute,
-                top: px(5),
-                left: px(10),
+                left: Val::Px(20.0),
+                top: Val::Px(10.0),
+                justify_content: JustifyContent::Start,
+                align_items: AlignItems::Start,
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(20.0),
                 ..default()
             },
+        ))
+        .id();
+
+    let back_button = commands
+        .spawn((
+            Node {
+                padding: UiRect::all(Val::Px(6.0)),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            Button,
             BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
             BorderColor::all(Color::BLACK),
             BorderRadius::all(Val::Px(10.0)),
@@ -620,7 +642,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             |_trigger: On<Pointer<Click>>,
              mut next_app_state: ResMut<NextState<AppState>>,
              mut next_level_state: ResMut<NextState<LevelState>>| {
-                info!("Back BTN clicked!");
+                info!("Back button clicked!");
                 next_app_state.set(AppState::Menu);
                 next_level_state.set(LevelState::Menu);
             },
@@ -629,28 +651,46 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             parent.spawn((
                 Text::new("Zurueck zum Menu"),
                 TextFont {
-                    font_size: 30.0,
+                    font_size: 23.0,
                     ..default()
                 },
                 TextColor(Color::WHITE),
             ));
-        });
-    //TODO cleanup back btn
+        })
+        .id();
 
-    // Restart Text
-    /*    commands.spawn((
-        Node {
-            position_type: PositionType::Absolute,
-            top: px(5),
-            left: px(10),
-            ..default()
-        },
-        Text::new("Druecke 'R' um ein neues Puzzle\nzu generieren"),
-        TextFont {
-            font_size: 20.0,
-            ..Default::default()
-        },
-    ));*/
+    let restart_button = commands
+        .spawn((
+            Node {
+                padding: UiRect::all(Val::Px(6.0)),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            Button,
+            BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
+            BorderColor::all(Color::BLACK),
+            BorderRadius::all(Val::Px(10.0)),
+        ))
+        .observe(|_trigger: On<Pointer<Click>>, mut commands: Commands| {
+            info!("Restart button clicked!");
+            commands.trigger(MakeNewPuzzleRequest);
+        })
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Restart"),
+                TextFont {
+                    font_size: 23.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ));
+        })
+        .id();
+
+    commands
+        .entity(button_root)
+        .add_children(&[back_button, restart_button]);
 }
 
 fn get_path_to_start_sprite_for_tile(tile: &Tile) -> &'static str {
@@ -755,6 +795,7 @@ fn cleanup_puzzle(
     mut commands: Commands,
     tiles: Query<Entity, With<TileComponent>>,
     grid_lines: Query<Entity, With<GridLine>>,
+    buttons: Query<Entity, With<Button>>,
 ) {
     // Despawn tile entities (and any children)
     for entity in tiles.iter() {
@@ -763,6 +804,11 @@ fn cleanup_puzzle(
 
     // Despawn grid lines
     for entity in grid_lines.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    // Despawn buttons
+    for entity in buttons.iter() {
         commands.entity(entity).despawn();
     }
 
@@ -776,9 +822,15 @@ fn new_puzzle(
     mut commands: Commands,
     tiles: Query<(Entity, &TileComponent)>,
     grid_lines: Query<Entity, With<GridLine>>,
+    camera: Single<(Entity, &Tonemapping, Option<&mut Bloom>), With<Camera>>,
     asset_server: Res<AssetServer>,
     level_state: Res<State<LevelState>>,
 ) {
+    // Reset Tonemapping and Bloom
+    let (camera_entity, _, _) = camera.into_inner();
+    commands.entity(camera_entity).remove::<Bloom>();
+    commands.entity(camera_entity).insert(Tonemapping::None);
+
     // Delete previous tiles
     for (entity, _) in tiles.iter() {
         commands.entity(entity).despawn();
@@ -859,7 +911,7 @@ fn new_puzzle(
     }
 }
 fn generate_puzzle(level_state: Res<State<LevelState>>) -> Grid {
-    let mut easy = vec![
+    let easy = vec![
         Some(Tile::Cable {
             entry: Side::Right,
             exit: Side::Bottom,
@@ -889,107 +941,115 @@ fn generate_puzzle(level_state: Res<State<LevelState>>) -> Grid {
         }),
     ];
 
-    // ADD OTHER LEVELS HERE
-    if level_state.get() == &LevelState::Easy {
-        easy.shuffle(&mut rng());
-        return Grid(grid::Grid::from_vec(easy, 3));
-    }
-
-    let possible_tiles = [
-        vec![
-            Some(Tile::N),
-            Some(Tile::P),
-            None,
-            Some(Tile::Cable {
-                entry: Side::Top,
-                exit: Side::Bottom,
-            }),
-            Some(Tile::Battery {
-                plus_side: Side::Top,
-                minus_side: Side::Right,
-            }),
-            Some(Tile::Lamp {
-                entry: Side::Bottom,
-                exit: Side::Left,
-            }),
-            Some(Tile::Cable {
-                entry: Side::Top,
-                exit: Side::Right,
-            }),
-            Some(Tile::Cable {
-                entry: Side::Left,
-                exit: Side::Right,
-            }),
-            Some(Tile::Cable {
-                entry: Side::Left,
-                exit: Side::Top,
-            }),
-        ],
-        vec![
-            Some(Tile::N),
-            Some(Tile::P),
-            None,
-            Some(Tile::Cable {
-                entry: Side::Top,
-                exit: Side::Bottom,
-            }),
-            Some(Tile::Cable {
-                entry: Side::Bottom,
-                exit: Side::Right,
-            }),
-            Some(Tile::Cable {
-                entry: Side::Left,
-                exit: Side::Top,
-            }),
-            Some(Tile::Cable {
-                entry: Side::Bottom,
-                exit: Side::Left,
-            }),
-            Some(Tile::Lamp {
-                entry: Side::Right,
-                exit: Side::Left,
-            }),
-            Some(Tile::Battery {
-                plus_side: Side::Bottom,
-                minus_side: Side::Right,
-            }),
-        ],
-        vec![
-            None,
-            Some(Tile::N),
-            Some(Tile::P),
-            Some(Tile::Battery {
-                plus_side: Side::Left,
-                minus_side: Side::Top,
-            }),
-            Some(Tile::Cable {
-                entry: Side::Right,
-                exit: Side::Left,
-            }),
-            Some(Tile::Lamp {
-                entry: Side::Right,
-                exit: Side::Top,
-            }),
-            Some(Tile::Cable {
-                entry: Side::Bottom,
-                exit: Side::Right,
-            }),
-            Some(Tile::Cable {
-                entry: Side::Left,
-                exit: Side::Top,
-            }),
-            Some(Tile::Cable {
-                entry: Side::Bottom,
-                exit: Side::Right,
-            }),
-        ],
+    let medium = vec![
+        None,
+        Some(Tile::N),
+        Some(Tile::P),
+        Some(Tile::Battery {
+            plus_side: Side::Left,
+            minus_side: Side::Top,
+        }),
+        Some(Tile::Cable {
+            entry: Side::Right,
+            exit: Side::Left,
+        }),
+        Some(Tile::Lamp {
+            entry: Side::Right,
+            exit: Side::Top,
+        }),
+        Some(Tile::Cable {
+            entry: Side::Bottom,
+            exit: Side::Right,
+        }),
+        Some(Tile::Cable {
+            entry: Side::Left,
+            exit: Side::Top,
+        }),
+        Some(Tile::Cable {
+            entry: Side::Bottom,
+            exit: Side::Right,
+        }),
     ];
 
-    let mut tiles = possible_tiles[rand::random_range(..possible_tiles.len())].clone();
-    tiles.shuffle(&mut rng());
-    let grid = grid::Grid::from_vec(tiles, 3);
+    let hard = vec![
+        Some(Tile::N),
+        Some(Tile::P),
+        None,
+        Some(Tile::Cable {
+            entry: Side::Top,
+            exit: Side::Bottom,
+        }),
+        Some(Tile::Cable {
+            entry: Side::Bottom,
+            exit: Side::Right,
+        }),
+        Some(Tile::Cable {
+            entry: Side::Left,
+            exit: Side::Top,
+        }),
+        Some(Tile::Cable {
+            entry: Side::Bottom,
+            exit: Side::Left,
+        }),
+        Some(Tile::Lamp {
+            entry: Side::Right,
+            exit: Side::Left,
+        }),
+        Some(Tile::Battery {
+            plus_side: Side::Bottom,
+            minus_side: Side::Right,
+        }),
+    ];
 
-    Grid(grid)
+    let extreme = vec![
+        Some(Tile::N),
+        Some(Tile::P),
+        None,
+        Some(Tile::Cable {
+            entry: Side::Top,
+            exit: Side::Bottom,
+        }),
+        Some(Tile::Battery {
+            plus_side: Side::Top,
+            minus_side: Side::Right,
+        }),
+        Some(Tile::Lamp {
+            entry: Side::Bottom,
+            exit: Side::Left,
+        }),
+        Some(Tile::Cable {
+            entry: Side::Top,
+            exit: Side::Right,
+        }),
+        Some(Tile::Cable {
+            entry: Side::Left,
+            exit: Side::Right,
+        }),
+        Some(Tile::Cable {
+            entry: Side::Left,
+            exit: Side::Top,
+        }),
+    ];
+
+    let mut level;
+
+    match level_state.get() {
+        LevelState::Easy => {
+            level = easy.clone();
+        }
+        LevelState::Medium => {
+            level = medium.clone();
+        }
+        LevelState::Hard => {
+            level = hard.clone();
+        }
+        _ => {
+            level = extreme.clone();
+        }
+    }
+
+    level.shuffle(&mut rng());
+    return Grid(grid::Grid::from_vec(level, 3));
 }
 
 fn restart_listener(input: Res<ButtonInput<KeyCode>>, mut commands: Commands) {
@@ -1011,6 +1071,7 @@ struct TileDragSystemState {
 
 #[allow(clippy::too_many_arguments)]
 fn tile_drag_system(
+    camera: Single<(Entity, &Tonemapping, Option<&mut Bloom>), With<Camera>>,
     mut state: Local<TileDragSystemState>,
     mut cursor_moved_event_reader: MessageReader<CursorMoved>,
     mouse_button_input: Res<ButtonInput<MouseButton>>,
@@ -1021,6 +1082,8 @@ fn tile_drag_system(
     mut commands: Commands,
     sounds: Res<Sounds>,
 ) {
+    let (camera_entity, _, bloom) = camera.into_inner();
+
     // Update cursor position
     let half_window = Vec2::new(WIN_WIDTH as f32 / 2.0, WIN_HEIGHT as f32 / 2.0);
     if let Some(cursor_event) = cursor_moved_event_reader.read().last() {
@@ -1057,19 +1120,51 @@ fn tile_drag_system(
 
             for (_, tile, mut sprite) in tiles.iter_mut() {
                 if let Some(lamp @ Tile::Lamp { .. }) = grid.get(tile.x, tile.y).unwrap() {
-                    sprite.image = asset_server.load(match is_solved {
-                        true => get_path_to_lamp_on_sprite_for_tile(lamp),
-                        false => get_path_to_start_sprite_for_tile(lamp),
-                    });
+                    match is_solved {
+                        true => {
+                            sprite.image =
+                                asset_server.load(get_path_to_lamp_on_sprite_for_tile(lamp));
+                            sprite.color = Color::srgb(5.0, 5.0, 0.0);
+                            continue;
+                        }
+                        false => {
+                            sprite.image =
+                                asset_server.load(get_path_to_start_sprite_for_tile(lamp));
+                            sprite.color = Color::WHITE;
+                            continue;
+                        }
+                    }
                 }
             }
 
             if is_solved {
+                // Bloom
+                commands.entity(camera_entity).remove::<Bloom>();
+                commands.entity(camera_entity).insert((
+                    Bloom {
+                        composite_mode: BloomCompositeMode::Additive,
+                        intensity: 0.1,
+                        low_frequency_boost_curvature: 0.9,
+                        low_frequency_boost: 0.75,
+                        scale: Vec2::splat(2.06),
+                        prefilter: BloomPrefilter {
+                            threshold: 0.6,
+                            threshold_softness: 0.0,
+                        },
+                        ..default()
+                    },
+                    Tonemapping::TonyMcMapface,
+                ));
+
                 // Audio
                 commands.spawn((
                     AudioPlayer::new(sounds.lamp_turns_on.clone()),
                     PlaybackSettings::DESPAWN,
                 ));
+            } else {
+                // Bloom
+                commands.entity(camera_entity).remove::<Bloom>();
+                commands.entity(camera_entity).insert(Tonemapping::None);
             }
 
             // Audio
