@@ -38,6 +38,9 @@ fn main() {
         .init_state::<AppState>()
         .init_state::<LevelState>()
         .add_systems(Startup, setup_camera)
+        // Intro Systems
+        .add_systems(OnEnter(AppState::Intro), spawn_intro)
+        .add_systems(OnExit(AppState::Intro), cleanup_intro)
         // Menu Systems
         .add_systems(OnEnter(AppState::Menu), spawn_menu)
         .add_systems(OnExit(AppState::Menu), cleanup_menu)
@@ -58,6 +61,7 @@ fn main() {
 #[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
 enum AppState {
     #[default]
+    Intro,
     Menu,
     Game,
 }
@@ -73,6 +77,110 @@ enum LevelState {
 
 fn setup_camera(mut commands: Commands) {
     commands.spawn((Camera2d, Tonemapping::None, DebandDither::default()));
+}
+
+// -------------------------------------------------------------------------------------------------
+// INTRO
+// -------------------------------------------------------------------------------------------------
+
+#[derive(Component)]
+#[require(Node, BackgroundColor)]
+struct IntroRoot;
+
+fn spawn_intro(mut commands: Commands) {
+    let root = commands
+        .spawn((
+            IntroRoot,
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.1, 0.1, 0.1)),
+        ))
+        .id();
+
+    let text = commands
+        .spawn((
+            Text::new(
+                "In diesem Spiel musst du einen einfachen Stromkreis zusammenbauen.
+Dabei benutzt du ein besonderes Bauteil aus zwei Teilen: p-dotiert und n-dotiert.
+Es gibt folgende Teile:
+ - Stromquelle
+ - Kabel
+ - Lampe
+ - p- und n-dotiertes Teil
+
+Wenn p- und n-Teil zusammenkommen, entsteht zwischen ihnen eine Sperrschicht.
+Diese Sperrschicht kann den Strom blockieren oder durchlassen.
+
+Du sollst die beiden Teile richtig herum in den Stromkreis einbauen und die Lampe zum Leuchten bringen.
+Bringe Licht ins dunkle!",
+            ),
+            TextFont {
+                font_size: 30.0,
+                ..default()
+            },
+            TextColor(Color::WHITE),
+        ))
+        .id();
+
+    let next_button_container = commands
+        .spawn(Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(50.0),
+            right: Val::Px(50.0),
+            ..default()
+        })
+        .id();
+
+    let next_button = commands
+        .spawn((
+            Button,
+            Node {
+                width: Val::Px(100.0),
+                height: Val::Px(50.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                border: UiRect::all(Val::Px(2.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
+            BorderColor::all(Color::BLACK),
+            BorderRadius::all(Val::Px(10.0)),
+        ))
+        .observe(
+            |_: On<Pointer<Click>>, mut next_state: ResMut<NextState<AppState>>| {
+                next_state.set(AppState::Menu);
+            },
+        )
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Next"),
+                TextFont {
+                    font_size: 20.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ));
+        })
+        .id();
+
+    commands
+        .entity(next_button_container)
+        .add_child(next_button);
+    commands
+        .entity(root)
+        .add_children(&[text, next_button_container]);
+}
+
+fn cleanup_intro(mut commands: Commands, query: Query<Entity, With<IntroRoot>>) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
+    }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -1082,7 +1190,7 @@ fn tile_drag_system(
     mut commands: Commands,
     sounds: Res<Sounds>,
 ) {
-    let (camera_entity, _, bloom) = camera.into_inner();
+    let (camera_entity, _, _bloom) = camera.into_inner();
 
     // Update cursor position
     let half_window = Vec2::new(WIN_WIDTH as f32 / 2.0, WIN_HEIGHT as f32 / 2.0);
