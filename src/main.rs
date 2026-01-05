@@ -1170,7 +1170,7 @@ fn tile_drag_system(
             // Audio
             commands.spawn((AudioPlayer::new(sounds.drop.clone()), {
                 let mut settings = PlaybackSettings::DESPAWN;
-                settings.volume = Volume::Linear(0.25);
+                settings.volume = Volume::Linear(0.15);
                 settings
             }));
         } else {
