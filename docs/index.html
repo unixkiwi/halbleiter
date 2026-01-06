@@ -10,7 +10,7 @@
             margin: 0;
             padding: 0;
             background-color: #1a1a1a;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: sans-serif;
             color: #ffffff;
             display: flex;
             justify-content: center;
@@ -101,8 +101,8 @@
     <div id="quiz-container">
         <div id="start-screen">
             <h1>Halbleiter-Quiz</h1>
-            <p>Bevor das Spiel startet, teste dein Wissen über Halbleiter!</p>
-            <p>Thema: Dotierung (p und n), Physik 9. Klasse</p>
+            <p>Wie ein altes Sprichwort sagt: Erst die Arbeit, dann das Vergnügen!</p>
+            <p>Beantwortet zunächst ein Quiz zum Thema Dotierung und baut danach Stromkreise im Logikspiel!</p>
             <button id="start-btn">Starten</button>
         </div>
 
@@ -111,7 +111,6 @@
                     id="total-questions-num">10</span></div>
             <h2 id="question-text">Frage Text</h2>
             <div class="options-grid" id="options-container">
-                <!-- Buttons will be inserted here -->
             </div>
             <p id="explanation" style="min-height: 1.2em;"></p>
             <button id="next-question-btn" class="hidden">Nächste Frage</button>
@@ -133,30 +132,28 @@
             {
                 question: "Was ist ein Halbleiter?",
                 answers: [
-                    "Ein Material, das Strom immer sehr gut leitet",
-                    "Ein Material, das Strom gar nicht leitet",
-                    "Ein Material, dessen Leitfähigkeit zwischen Leiter und Isolator liegt",
-                    "Ein Material, das nur bei Kälte leitet"
+                    "Ein Feststoff, das Strom immer sehr gut leitet",
+                    "Ein Feststoff, das Strom gar nicht leitet",
+                    "Ein Feststoff, dessen Leitfähigkeit zwischen Leiter und Isolator liegt",
+                    "Ein Feststoff, das nur bei Kälte leitet"
                 ],
                 correct: 2
             },
             {
-                question: "Welches Element ist der wichtigste Halbleiter in der Technik?",
+                question: "Wann ist eine Halbleiterdiode in Sperrrichtung?",
                 answers: [
-                    "Eisen",
-                    "Kupfer",
-                    "Silizium",
-                    "Gold"
+                    "Wenn die p-Schicht am Pluspol liegt",
+                    "Wenn die n-Schicht am Pluspol liegt"
                 ],
-                correct: 2
+                correct: 1
             },
             {
-                question: "Wie viele Außenelektronen (Valenzelektronen) hat ein Silizium-Atom?",
+                question: "Was beinhaltet eine Halbleiterdiode?",
                 answers: [
-                    "1",
-                    "2",
-                    "4",
-                    "8"
+                    "Zwei n-dotierte Schichten",
+                    "Zwei p-dotierte Schichten",
+                    "Eine n-dotierte und p-dotierte Schicht",
+                    "Reines Silizium ohne Dotierung"
                 ],
                 correct: 2
             },
@@ -164,28 +161,28 @@
                 question: "Was versteht man unter 'Dotierung'?",
                 answers: [
                     "Das Reinigen des Materials",
-                    "Das gezielte Verunreinigen mit Fremdatomen",
+                    "Das gezielte 'Verunreinigen' mit Elementen aus der 3. oder 5. Hauptgruppe",
                     "Das Erhitzen des Materials",
-                    "Das Beschichten mit Farbe"
+                    "Das Beschichten mit speziellen Lacken mit Elementen aus der 1. Hauptgruppe"
                 ],
                 correct: 1
             },
             {
                 question: "Was wird für eine n-Dotierung benötigt?",
                 answers: [
-                    "Fremdatome mit 3 Außenelektronen (z.B. Bor)",
-                    "Fremdatome mit 4 Außenelektronen",
-                    "Fremdatome mit 5 Außenelektronen (z.B. Phosphor)",
+                    "Fremdatome mit 3 Valenzelektronen (z.B. Bor)",
+                    "Fremdatome mit 4 Valenzelektronen",
+                    "Fremdatome mit 5 Valenzelektronen (z.B. Phosphor)",
                     "Neutrale Atome"
                 ],
                 correct: 2
             },
             {
-                question: "Welche Ladungsträger sorgen bei n-dotierten Halbleitern für den Stromfluss?",
+                question: "Was sorgt bei n-dotierten Halbleitern für den Stromfluss?",
                 answers: [
                     "Positive Ionen",
-                    "Löcher (Defektelektronen)",
-                    "Zusätzliche freie Elektronen",
+                    "Löcher",
+                    "Elektronenüberschuss",
                     "Protonen"
                 ],
                 correct: 2
@@ -193,8 +190,8 @@
             {
                 question: "Was wird für eine p-Dotierung verwendet?",
                 answers: [
-                    "Fremdatome mit 3 Außenelektronen (z.B. Bor)",
-                    "Fremdatome mit 5 Außenelektronen (z.B. Phosphor)",
+                    "Fremdatome mit 3 Valenzelektronen (z.B. Bor)",
+                    "Fremdatome mit 5 Valenzelektronen (z.B. Phosphor)",
                     "Edelgase",
                     "Metalle"
                 ],
@@ -204,7 +201,7 @@
                 question: "Was entsteht im Kristallgitter durch p-Dotierung?",
                 answers: [
                     "Elektronenüberschuss",
-                    "Elektronenlöcher (Defektelektronen)",
+                    "Löcher",
                     "Neutronen",
                     "Plasma"
                 ],
@@ -214,7 +211,7 @@
                 question: "Was passiert, wenn n-dotierte und p-dotierte Schichten zusammenkommen?",
                 answers: [
                     "Sie explodieren",
-                    "Es bildet sich eine Grenzschicht (pn-Übergang)",
+                    "Es bildet sich einen pn-Übergang",
                     "Sie werden zu einem Isolator",
                     "Nichts"
                 ],
@@ -312,7 +309,7 @@
             if (score === questions.length) {
                 feedback.textContent = "Sieht gut aus, aber bist du auch gut im Halbleiterspiel???";
             } else if (score >= questions.length / 2) {
-                feedback.textContent = "Gut gemacht, aber da geht noch mehr!";
+                feedback.textContent = "Nunja Bestanden ist Bestanden, aber ich würd' sagen da noch a bissl mehr...";
             } else {
                 feedback.textContent = "Das kannst du sicher noch besser! 6-7 Stunden Lernen sollten helfen.";
             }
