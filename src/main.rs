@@ -298,33 +298,33 @@ fn spawn_menu(mut commands: Commands) {
     );
 
     // Quit Button
-    let quit_button = commands
-        .spawn((
-            Button,
-            Node {
-                width: Val::Px(200.0),
-                height: Val::Px(65.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            BackgroundColor(Color::srgb(0.5, 0.1, 0.1)),
-            BorderRadius::all(Val::Px(10.0)),
-        ))
-        .observe(|_: On<Pointer<Click>>, mut exit: MessageWriter<AppExit>| {
-            exit.write(AppExit::Success);
-        })
-        .with_children(|parent| {
-            parent.spawn((
-                Text::new("Quit"),
-                TextFont {
-                    font_size: 30.0,
-                    ..default()
-                },
-                TextColor(Color::WHITE),
-            ));
-        })
-        .id();
+    // let quit_button = commands
+    //     .spawn((
+    //         Button,
+    //         Node {
+    //             width: Val::Px(200.0),
+    //             height: Val::Px(65.0),
+    //             justify_content: JustifyContent::Center,
+    //             align_items: AlignItems::Center,
+    //             ..default()
+    //         },
+    //         BackgroundColor(Color::srgb(0.5, 0.1, 0.1)),
+    //         BorderRadius::all(Val::Px(10.0)),
+    //     ))
+    //     .observe(|_: On<Pointer<Click>>, mut exit: MessageWriter<AppExit>| {
+    //         exit.write(AppExit::Success);
+    //     })
+    //     .with_children(|parent| {
+    //         parent.spawn((
+    //             Text::new("Quit"),
+    //             TextFont {
+    //                 font_size: 30.0,
+    //                 ..default()
+    //             },
+    //             TextColor(Color::WHITE),
+    //         ));
+    //     })
+    //     .id();
 
     // Build screen hierarchy
     commands.entity(root).add_children(&[
@@ -332,7 +332,7 @@ fn spawn_menu(mut commands: Commands) {
         easy_button,
         medium_button,
         hard_button,
-        quit_button,
+        // quit_button,
     ]);
 }
 
