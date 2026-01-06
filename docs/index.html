@@ -308,7 +308,7 @@
             const feedback = document.getElementById('feedback-msg');
             if (score === questions.length) {
                 feedback.textContent = "Sieht gut aus, aber bist du auch gut im Halbleiterspiel???";
-            } else if (score >= questions.length / 2) {
+            } else if (score >= questions.length * 0.8) {
                 feedback.textContent = "Nunja Bestanden ist Bestanden, aber ich würd' sagen da noch a bissl mehr...";
             } else {
                 feedback.textContent = "Das kannst du sicher noch besser! 6-7 Stunden Lernen sollten helfen.";
