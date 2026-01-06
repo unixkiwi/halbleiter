@@ -1,325 +1,345 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <head>
+    <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>Halbleiter</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #1a1a1a;
-            font-family: sans-serif;
-            color: #ffffff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #1a1a1a;
+        font-family: sans-serif;
+        color: #ffffff;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+      }
 
-        canvas {
-            display: block;
-        }
+      canvas {
+        display: block;
+      }
 
-        #quiz-container {
-            background-color: #2a2a2a;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            max-width: 600px;
-            width: 90%;
-            text-align: center;
-            z-index: 1000;
-        }
+      #quiz-container {
+        background-color: #2a2a2a;
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        max-width: 600px;
+        width: 90%;
+        text-align: center;
+        z-index: 1000;
+      }
 
-        .hidden {
-            display: none !important;
-        }
+      .hidden {
+        display: none !important;
+      }
 
-        h1,
-        h2 {
-            color: #4caf50;
-        }
+      h1,
+      h2 {
+        color: #4caf50;
+      }
 
-        button {
-            background-color: #4caf50;
-            border: none;
-            color: white;
-            padding: 15px 32px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 16px;
-            margin: 4px 2px;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-        }
+      button {
+        background-color: #4caf50;
+        border: none;
+        color: white;
+        padding: 15px 32px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 5px;
+        transition: background-color 0.3s;
+      }
 
-        button:hover {
-            background-color: #45a049;
-        }
+      button:hover {
+        background-color: #45a049;
+      }
 
-        .options-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 10px;
-            margin-top: 20px;
-            margin-bottom: 20px;
-        }
+      .options-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+      }
 
-        .option-btn {
-            background-color: #333;
-            text-align: left;
-            padding: 15px;
-            border: 1px solid #444;
-        }
+      .option-btn {
+        background-color: #333;
+        text-align: left;
+        padding: 15px;
+        border: 1px solid #444;
+      }
 
-        .option-btn:hover {
-            background-color: #444;
-        }
+      .option-btn:hover {
+        background-color: #444;
+      }
 
-        .option-btn.correct {
-            background-color: #4caf50 !important;
-        }
+      .option-btn.correct {
+        background-color: #4caf50 !important;
+      }
 
-        .option-btn.wrong {
-            background-color: #f44336 !important;
-        }
+      .option-btn.wrong {
+        background-color: #f44336 !important;
+      }
 
-        .progress {
-            margin-bottom: 15px;
-            font-size: 0.9em;
-            color: #aaa;
-        }
+      .progress {
+        margin-bottom: 15px;
+        font-size: 0.9em;
+        color: #aaa;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
     <div id="quiz-container">
-        <div id="start-screen">
-            <h1>Halbleiter-Quiz</h1>
-            <p>Wie ein altes Sprichwort sagt: Erst die Arbeit, dann das Vergnügen!</p>
-            <p>Beantwortet zunächst ein Quiz zum Thema Dotierung und baut danach Stromkreise im Logikspiel!</p>
-            <button id="start-btn">Starten</button>
-        </div>
+      <div id="start-screen">
+        <h1>Halbleiter-Quiz</h1>
+        <p>
+          Wie ein altes Sprichwort sagt: Erst die Arbeit, dann das Vergnügen!
+        </p>
+        <p>
+          Beantwortet zunächst ein Quiz zum Thema Dotierung und baut danach
+          Stromkreise im Logikspiel!
+        </p>
+        <button id="start-btn">Starten</button>
+      </div>
 
-        <div id="question-screen" class="hidden">
-            <div class="progress">Frage <span id="current-question-num">1</span> von <span
-                    id="total-questions-num">10</span></div>
-            <h2 id="question-text">Frage Text</h2>
-            <div class="options-grid" id="options-container">
-            </div>
-            <p id="explanation" style="min-height: 1.2em;"></p>
-            <button id="next-question-btn" class="hidden">Nächste Frage</button>
+      <div id="question-screen" class="hidden">
+        <div class="progress">
+          Frage <span id="current-question-num">1</span> von
+          <span id="total-questions-num">10</span>
         </div>
+        <h2 id="question-text">Frage Text</h2>
+        <div class="options-grid" id="options-container"></div>
+        <p id="explanation" style="min-height: 1.2em"></p>
+        <button id="next-question-btn" class="hidden">Nächste Frage</button>
+      </div>
 
-        <div id="result-screen" class="hidden">
-            <h1>Ergebnis</h1>
-            <p>Du hast <span id="score">0</span> von <span id="total-score">10</span> Fragen richtig beantwortet.</p>
-            <p id="feedback-msg"></p>
-            <button id="start-game-btn">Spiel starten</button>
-        </div>
+      <div id="result-screen" class="hidden">
+        <h1>Ergebnis</h1>
+        <p>
+          Du hast <span id="score">0</span> von
+          <span id="total-score">10</span> Fragen richtig beantwortet.
+        </p>
+        <p id="feedback-msg"></p>
+        <button id="start-game-btn">Spiel starten</button>
+      </div>
+      <div id="game-container" class="hidden">
+        <p>
+          Das Laden des Spiels kann einige Sekunden bis zu 2 Minuten dauern...
+        </p>
+      </div>
     </div>
 
     <script type="module">
-        import init from './halbleiter.js';
+      import init from "./halbleiter.js";
 
-        // Quiz Data
-        const questions = [
-            {
-                question: "Was ist ein Halbleiter?",
-                answers: [
-                    "Ein Feststoff, das Strom immer sehr gut leitet",
-                    "Ein Feststoff, das Strom gar nicht leitet",
-                    "Ein Feststoff, dessen Leitfähigkeit zwischen Leiter und Isolator liegt",
-                    "Ein Feststoff, das nur bei Kälte leitet"
-                ],
-                correct: 2
-            },
-            {
-                question: "Wann ist eine Halbleiterdiode in Sperrrichtung?",
-                answers: [
-                    "Wenn die p-Schicht am Pluspol liegt",
-                    "Wenn die n-Schicht am Pluspol liegt"
-                ],
-                correct: 1
-            },
-            {
-                question: "Was beinhaltet eine Halbleiterdiode?",
-                answers: [
-                    "Zwei n-dotierte Schichten",
-                    "Zwei p-dotierte Schichten",
-                    "Eine n-dotierte und p-dotierte Schicht",
-                    "Reines Silizium ohne Dotierung"
-                ],
-                correct: 2
-            },
-            {
-                question: "Was versteht man unter 'Dotierung'?",
-                answers: [
-                    "Das Reinigen des Materials",
-                    "Das gezielte 'Verunreinigen' mit Elementen aus der 3. oder 5. Hauptgruppe",
-                    "Das Erhitzen des Materials",
-                    "Das Beschichten mit speziellen Lacken mit Elementen aus der 1. Hauptgruppe"
-                ],
-                correct: 1
-            },
-            {
-                question: "Was wird für eine n-Dotierung benötigt?",
-                answers: [
-                    "Fremdatome mit 3 Valenzelektronen (z.B. Bor)",
-                    "Fremdatome mit 4 Valenzelektronen",
-                    "Fremdatome mit 5 Valenzelektronen (z.B. Phosphor)",
-                    "Neutrale Atome"
-                ],
-                correct: 2
-            },
-            {
-                question: "Was sorgt bei n-dotierten Halbleitern für den Stromfluss?",
-                answers: [
-                    "Positive Ionen",
-                    "Löcher",
-                    "Elektronenüberschuss",
-                    "Protonen"
-                ],
-                correct: 2
-            },
-            {
-                question: "Was wird für eine p-Dotierung verwendet?",
-                answers: [
-                    "Fremdatome mit 3 Valenzelektronen (z.B. Bor)",
-                    "Fremdatome mit 5 Valenzelektronen (z.B. Phosphor)",
-                    "Edelgase",
-                    "Metalle"
-                ],
-                correct: 0
-            },
-            {
-                question: "Was entsteht im Kristallgitter durch p-Dotierung?",
-                answers: [
-                    "Elektronenüberschuss",
-                    "Löcher",
-                    "Neutronen",
-                    "Plasma"
-                ],
-                correct: 1
-            },
-            {
-                question: "Was passiert, wenn n-dotierte und p-dotierte Schichten zusammenkommen?",
-                answers: [
-                    "Sie explodieren",
-                    "Es bildet sich einen pn-Übergang",
-                    "Sie werden zu einem Isolator",
-                    "Nichts"
-                ],
-                correct: 1
-            },
-            {
-                question: "Wofür werden Halbleiter im Alltag verwendet?",
-                answers: [
-                    "Nur in Glühbirnen",
-                    "In Computerchips, Solarzellen und LEDs",
-                    "Dafür gibt es keine Anwendung",
-                    "Als Baumaterial für Häuser"
-                ],
-                correct: 1
-            }
-        ];
+      // Quiz Data
+      const questions = [
+        {
+          question: "Was ist ein Halbleiter?",
+          answers: [
+            "Ein Feststoff, das Strom immer sehr gut leitet",
+            "Ein Feststoff, das Strom gar nicht leitet",
+            "Ein Feststoff, dessen Leitfähigkeit zwischen Leiter und Isolator liegt",
+            "Ein Feststoff, das nur bei Kälte leitet",
+          ],
+          correct: 2,
+        },
+        {
+          question: "Wann ist eine Halbleiterdiode in Sperrrichtung?",
+          answers: [
+            "Wenn die p-Schicht am Pluspol liegt",
+            "Wenn die n-Schicht am Pluspol liegt",
+          ],
+          correct: 1,
+        },
+        {
+          question: "Was beinhaltet eine Halbleiterdiode?",
+          answers: [
+            "Zwei n-dotierte Schichten",
+            "Zwei p-dotierte Schichten",
+            "Eine n-dotierte und p-dotierte Schicht",
+            "Reines Silizium ohne Dotierung",
+          ],
+          correct: 2,
+        },
+        {
+          question: "Was versteht man unter 'Dotierung'?",
+          answers: [
+            "Das Reinigen des Materials",
+            "Das gezielte 'Verunreinigen' mit Elementen aus der 3. oder 5. Hauptgruppe",
+            "Das Erhitzen des Materials",
+            "Das Beschichten mit speziellen Lacken mit Elementen aus der 1. Hauptgruppe",
+          ],
+          correct: 1,
+        },
+        {
+          question: "Was wird für eine n-Dotierung benötigt?",
+          answers: [
+            "Fremdatome mit 3 Valenzelektronen (z.B. Bor)",
+            "Fremdatome mit 4 Valenzelektronen",
+            "Fremdatome mit 5 Valenzelektronen (z.B. Phosphor)",
+            "Neutrale Atome",
+          ],
+          correct: 2,
+        },
+        {
+          question: "Was sorgt bei n-dotierten Halbleitern für den Stromfluss?",
+          answers: [
+            "Positive Ionen",
+            "Löcher",
+            "Elektronenüberschuss",
+            "Protonen",
+          ],
+          correct: 2,
+        },
+        {
+          question: "Was wird für eine p-Dotierung verwendet?",
+          answers: [
+            "Fremdatome mit 3 Valenzelektronen (z.B. Bor)",
+            "Fremdatome mit 5 Valenzelektronen (z.B. Phosphor)",
+            "Edelgase",
+            "Metalle",
+          ],
+          correct: 0,
+        },
+        {
+          question: "Was entsteht im Kristallgitter durch p-Dotierung?",
+          answers: ["Elektronenüberschuss", "Löcher", "Neutronen", "Plasma"],
+          correct: 1,
+        },
+        {
+          question:
+            "Was passiert, wenn n-dotierte und p-dotierte Schichten zusammenkommen?",
+          answers: [
+            "Sie explodieren",
+            "Es bildet sich einen pn-Übergang",
+            "Sie werden zu einem Isolator",
+            "Nichts",
+          ],
+          correct: 1,
+        },
+        {
+          question: "Wofür werden Halbleiter im Alltag verwendet?",
+          answers: [
+            "Nur in Glühbirnen",
+            "In Computerchips, Solarzellen und LEDs",
+            "Dafür gibt es keine Anwendung",
+            "Als Baumaterial für Häuser",
+          ],
+          correct: 1,
+        },
+      ];
 
-        let currentQuestionIndex = 0;
-        let score = 0;
-        let answered = false;
+      let currentQuestionIndex = 0;
+      let score = 0;
+      let answered = false;
 
-        // Elements
-        const quizContainer = document.getElementById('quiz-container');
-        const startScreen = document.getElementById('start-screen');
-        const questionScreen = document.getElementById('question-screen');
-        const resultScreen = document.getElementById('result-screen');
+      // Elements
+      const quizContainer = document.getElementById("quiz-container");
+      const startScreen = document.getElementById("start-screen");
+      const questionScreen = document.getElementById("question-screen");
+      const resultScreen = document.getElementById("result-screen");
 
-        // Buttons
-        document.getElementById('start-btn').addEventListener('click', startQuiz);
-        document.getElementById('next-question-btn').addEventListener('click', nextQuestion);
-        document.getElementById('start-game-btn').addEventListener('click', startGame);
+      // Buttons
+      document.getElementById("start-btn").addEventListener("click", startQuiz);
+      document
+        .getElementById("next-question-btn")
+        .addEventListener("click", nextQuestion);
+      document
+        .getElementById("start-game-btn")
+        .addEventListener("click", startGame);
 
-        function startQuiz() {
-            startScreen.classList.add('hidden');
-            questionScreen.classList.remove('hidden');
-            loadQuestion();
+      function startQuiz() {
+        startScreen.classList.add("hidden");
+        questionScreen.classList.remove("hidden");
+        loadQuestion();
+      }
+
+      function loadQuestion() {
+        answered = false;
+        const q = questions[currentQuestionIndex];
+
+        document.getElementById("current-question-num").textContent =
+          currentQuestionIndex + 1;
+        document.getElementById("total-questions-num").textContent =
+          questions.length;
+        document.getElementById("question-text").textContent = q.question;
+
+        const optionsContainer = document.getElementById("options-container");
+        optionsContainer.innerHTML = "";
+
+        q.answers.forEach((answer, index) => {
+          const btn = document.createElement("button");
+          btn.textContent = answer;
+          btn.className = "option-btn";
+          btn.addEventListener("click", () => checkAnswer(index, btn));
+          optionsContainer.appendChild(btn);
+        });
+
+        document.getElementById("next-question-btn").classList.add("hidden");
+      }
+
+      function checkAnswer(selectedIndex, btn) {
+        if (answered) return;
+        answered = true;
+
+        const correctIndex = questions[currentQuestionIndex].correct;
+        const options = document.querySelectorAll(".option-btn");
+
+        if (selectedIndex === correctIndex) {
+          btn.classList.add("correct");
+          score++;
+        } else {
+          btn.classList.add("wrong");
+          options[correctIndex].classList.add("correct");
         }
 
-        function loadQuestion() {
-            answered = false;
-            const q = questions[currentQuestionIndex];
+        document.getElementById("next-question-btn").classList.remove("hidden");
+      }
 
-            document.getElementById('current-question-num').textContent = currentQuestionIndex + 1;
-            document.getElementById('total-questions-num').textContent = questions.length;
-            document.getElementById('question-text').textContent = q.question;
-
-            const optionsContainer = document.getElementById('options-container');
-            optionsContainer.innerHTML = '';
-
-            q.answers.forEach((answer, index) => {
-                const btn = document.createElement('button');
-                btn.textContent = answer;
-                btn.className = 'option-btn';
-                btn.addEventListener('click', () => checkAnswer(index, btn));
-                optionsContainer.appendChild(btn);
-            });
-
-            document.getElementById('next-question-btn').classList.add('hidden');
+      function nextQuestion() {
+        currentQuestionIndex++;
+        if (currentQuestionIndex < questions.length) {
+          loadQuestion();
+        } else {
+          showResults();
         }
+      }
 
-        function checkAnswer(selectedIndex, btn) {
-            if (answered) return;
-            answered = true;
+      function showResults() {
+        questionScreen.classList.add("hidden");
+        resultScreen.classList.remove("hidden");
+        document.getElementById("score").textContent = score;
+        document.getElementById("total-score").textContent = questions.length;
 
-            const correctIndex = questions[currentQuestionIndex].correct;
-            const options = document.querySelectorAll('.option-btn');
-
-            if (selectedIndex === correctIndex) {
-                btn.classList.add('correct');
-                score++;
-            } else {
-                btn.classList.add('wrong');
-                options[correctIndex].classList.add('correct');
-            }
-
-            document.getElementById('next-question-btn').classList.remove('hidden');
+        const feedback = document.getElementById("feedback-msg");
+        if (score === questions.length) {
+          feedback.textContent =
+            "Sieht gut aus, aber bist du auch gut im Halbleiterspiel???";
+        } else if (score >= questions.length * 0.8) {
+          feedback.textContent =
+            "Nunja Bestanden ist Bestanden, aber ich würd' sagen da geht noch a bissl mehr...";
+        } else {
+          feedback.textContent =
+            "Das kannst du sicher noch besser! 6-7 Stunden Lernen sollten helfen.";
         }
+      }
 
-        function nextQuestion() {
-            currentQuestionIndex++;
-            if (currentQuestionIndex < questions.length) {
-                loadQuestion();
-            } else {
-                showResults();
-            }
-        }
-
-        function showResults() {
-            questionScreen.classList.add('hidden');
-            resultScreen.classList.remove('hidden');
-            document.getElementById('score').textContent = score;
-            document.getElementById('total-score').textContent = questions.length;
-
-            const feedback = document.getElementById('feedback-msg');
-            if (score === questions.length) {
-                feedback.textContent = "Sieht gut aus, aber bist du auch gut im Halbleiterspiel???";
-            } else if (score >= questions.length * 0.8) {
-                feedback.textContent = "Nunja Bestanden ist Bestanden, aber ich würd' sagen da noch a bissl mehr...";
-            } else {
-                feedback.textContent = "Das kannst du sicher noch besser! 6-7 Stunden Lernen sollten helfen.";
-            }
-        }
-
-        async function startGame() {
-            quizContainer.classList.add('hidden');
-            await init();
-        }
+      async function startGame() {
+        quizContainer.classList.add("hidden");
+        const gameContainer = document.getElementById("game-container");
+        gameContainer.classList.remove("hidden");
+        await init();
+        gameContainer.classList.add("hidden");
+      }
     </script>
-</body>
-
+  </body>
 </html>
