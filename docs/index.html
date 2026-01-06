@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
@@ -9,6 +10,8 @@
             margin: 0;
             padding: 0;
             background-color: #1a1a1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #ffffff;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -19,18 +22,307 @@
         canvas {
             display: block;
         }
+
+        #quiz-container {
+            background-color: #2a2a2a;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1,
+        h2 {
+            color: #4caf50;
+        }
+
+        button {
+            background-color: #4caf50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .option-btn {
+            background-color: #333;
+            text-align: left;
+            padding: 15px;
+            border: 1px solid #444;
+        }
+
+        .option-btn:hover {
+            background-color: #444;
+        }
+
+        .option-btn.correct {
+            background-color: #4caf50 !important;
+        }
+
+        .option-btn.wrong {
+            background-color: #f44336 !important;
+        }
+
+        .progress {
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            color: #aaa;
+        }
     </style>
 </head>
+
 <body>
-<script type="module">
-    import init from './halbleiter.js';
+    <div id="quiz-container">
+        <div id="start-screen">
+            <h1>Halbleiter-Quiz</h1>
+            <p>Bevor das Spiel startet, teste dein Wissen über Halbleiter!</p>
+            <p>Thema: Dotierung (p und n), Physik 9. Klasse</p>
+            <button id="start-btn">Starten</button>
+        </div>
 
-    async function run() {
-        await init();
-    }
+        <div id="question-screen" class="hidden">
+            <div class="progress">Frage <span id="current-question-num">1</span> von <span
+                    id="total-questions-num">10</span></div>
+            <h2 id="question-text">Frage Text</h2>
+            <div class="options-grid" id="options-container">
+                <!-- Buttons will be inserted here -->
+            </div>
+            <p id="explanation" style="min-height: 1.2em;"></p>
+            <button id="next-question-btn" class="hidden">Nächste Frage</button>
+        </div>
 
-    run();
-</script>
+        <div id="result-screen" class="hidden">
+            <h1>Ergebnis</h1>
+            <p>Du hast <span id="score">0</span> von <span id="total-score">10</span> Fragen richtig beantwortet.</p>
+            <p id="feedback-msg"></p>
+            <button id="start-game-btn">Spiel starten</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import init from './halbleiter.js';
+
+        // Quiz Data
+        const questions = [
+            {
+                question: "Was ist ein Halbleiter?",
+                answers: [
+                    "Ein Material, das Strom immer sehr gut leitet",
+                    "Ein Material, das Strom gar nicht leitet",
+                    "Ein Material, dessen Leitfähigkeit zwischen Leiter und Isolator liegt",
+                    "Ein Material, das nur bei Kälte leitet"
+                ],
+                correct: 2
+            },
+            {
+                question: "Welches Element ist der wichtigste Halbleiter in der Technik?",
+                answers: [
+                    "Eisen",
+                    "Kupfer",
+                    "Silizium",
+                    "Gold"
+                ],
+                correct: 2
+            },
+            {
+                question: "Wie viele Außenelektronen (Valenzelektronen) hat ein Silizium-Atom?",
+                answers: [
+                    "1",
+                    "2",
+                    "4",
+                    "8"
+                ],
+                correct: 2
+            },
+            {
+                question: "Was versteht man unter 'Dotierung'?",
+                answers: [
+                    "Das Reinigen des Materials",
+                    "Das gezielte Verunreinigen mit Fremdatomen",
+                    "Das Erhitzen des Materials",
+                    "Das Beschichten mit Farbe"
+                ],
+                correct: 1
+            },
+            {
+                question: "Was wird für eine n-Dotierung benötigt?",
+                answers: [
+                    "Fremdatome mit 3 Außenelektronen (z.B. Bor)",
+                    "Fremdatome mit 4 Außenelektronen",
+                    "Fremdatome mit 5 Außenelektronen (z.B. Phosphor)",
+                    "Neutrale Atome"
+                ],
+                correct: 2
+            },
+            {
+                question: "Welche Ladungsträger sorgen bei n-dotierten Halbleitern für den Stromfluss?",
+                answers: [
+                    "Positive Ionen",
+                    "Löcher (Defektelektronen)",
+                    "Zusätzliche freie Elektronen",
+                    "Protonen"
+                ],
+                correct: 2
+            },
+            {
+                question: "Was wird für eine p-Dotierung verwendet?",
+                answers: [
+                    "Fremdatome mit 3 Außenelektronen (z.B. Bor)",
+                    "Fremdatome mit 5 Außenelektronen (z.B. Phosphor)",
+                    "Edelgase",
+                    "Metalle"
+                ],
+                correct: 0
+            },
+            {
+                question: "Was entsteht im Kristallgitter durch p-Dotierung?",
+                answers: [
+                    "Elektronenüberschuss",
+                    "Elektronenlöcher (Defektelektronen)",
+                    "Neutronen",
+                    "Plasma"
+                ],
+                correct: 1
+            },
+            {
+                question: "Was passiert, wenn n-dotierte und p-dotierte Schichten zusammenkommen?",
+                answers: [
+                    "Sie explodieren",
+                    "Es bildet sich eine Grenzschicht (pn-Übergang)",
+                    "Sie werden zu einem Isolator",
+                    "Nichts"
+                ],
+                correct: 1
+            },
+            {
+                question: "Wofür werden Halbleiter im Alltag verwendet?",
+                answers: [
+                    "Nur in Glühbirnen",
+                    "In Computerchips, Solarzellen und LEDs",
+                    "Dafür gibt es keine Anwendung",
+                    "Als Baumaterial für Häuser"
+                ],
+                correct: 1
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let answered = false;
+
+        // Elements
+        const quizContainer = document.getElementById('quiz-container');
+        const startScreen = document.getElementById('start-screen');
+        const questionScreen = document.getElementById('question-screen');
+        const resultScreen = document.getElementById('result-screen');
+
+        // Buttons
+        document.getElementById('start-btn').addEventListener('click', startQuiz);
+        document.getElementById('next-question-btn').addEventListener('click', nextQuestion);
+        document.getElementById('start-game-btn').addEventListener('click', startGame);
+
+        function startQuiz() {
+            startScreen.classList.add('hidden');
+            questionScreen.classList.remove('hidden');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            answered = false;
+            const q = questions[currentQuestionIndex];
+
+            document.getElementById('current-question-num').textContent = currentQuestionIndex + 1;
+            document.getElementById('total-questions-num').textContent = questions.length;
+            document.getElementById('question-text').textContent = q.question;
+
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            q.answers.forEach((answer, index) => {
+                const btn = document.createElement('button');
+                btn.textContent = answer;
+                btn.className = 'option-btn';
+                btn.addEventListener('click', () => checkAnswer(index, btn));
+                optionsContainer.appendChild(btn);
+            });
+
+            document.getElementById('next-question-btn').classList.add('hidden');
+        }
+
+        function checkAnswer(selectedIndex, btn) {
+            if (answered) return;
+            answered = true;
+
+            const correctIndex = questions[currentQuestionIndex].correct;
+            const options = document.querySelectorAll('.option-btn');
+
+            if (selectedIndex === correctIndex) {
+                btn.classList.add('correct');
+                score++;
+            } else {
+                btn.classList.add('wrong');
+                options[correctIndex].classList.add('correct');
+            }
+
+            document.getElementById('next-question-btn').classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < questions.length) {
+                loadQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            questionScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            document.getElementById('score').textContent = score;
+            document.getElementById('total-score').textContent = questions.length;
+
+            const feedback = document.getElementById('feedback-msg');
+            if (score === questions.length) {
+                feedback.textContent = "Sieht gut aus, aber bist du auch gut im Halbleiterspiel???";
+            } else if (score >= questions.length / 2) {
+                feedback.textContent = "Gut gemacht, aber da geht noch mehr!";
+            } else {
+                feedback.textContent = "Das kannst du sicher noch besser! 6-7 Stunden Lernen sollten helfen.";
+            }
+        }
+
+        async function startGame() {
+            quizContainer.classList.add('hidden');
+            await init();
+        }
+    </script>
 </body>
-</html>
 
+</html>
